@@ -4,6 +4,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <optional>
 
 class Application
 {
@@ -17,8 +18,27 @@ private:
 	void mainLoop();
 	void cleanup();
 
+	
+	bool isDeviceSuitable(const vk::PhysicalDevice& device) const;
+
+	struct QueueFamilyIndices
+	{
+		std::optional<uint32_t> graphicsFamily;
+		std::optional<uint32_t> presentFamily;
+
+		bool isComplete() const
+		{
+			return graphicsFamily.has_value() && presentFamily.has_value();
+		}
+	};
+
+	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
 
 	void createInstance();
+	void createSurface();
+	void pickPhysicalDevice();
+	void createLogicalDevice();
+
 	bool checkValidationLayerSupport() const;
 private:
 	std::string name;
@@ -27,6 +47,13 @@ private:
 	GLFWwindow* window = nullptr;
 
 	vk::Instance instance;
+	vk::PhysicalDevice physicalDevice = nullptr;
+	vk::Device device{};
+	vk::Queue graphicsQueue;
+	vk::Queue presentQueue;
+	vk::SurfaceKHR surface;
+
+
 	const std::vector<const char*> validationLayers =
 	{
 		"VK_LAYER_KHRONOS_validation",
