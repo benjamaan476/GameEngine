@@ -51,6 +51,7 @@ private:
 	void pickPhysicalDevice();
 	void createLogicalDevice();
 	void createSwapChain();
+	void createImageViews();
 
 	bool checkValidationLayerSupport() const;
 private:
@@ -70,6 +71,8 @@ private:
 
 	vk::SwapchainKHR swapchain;
 	std::vector<vk::Image> swapchainImages;
+	std::vector<vk::ImageView> swapchainImageViews;
+
 
 	const std::vector<const char*> validationLayers =
 	{

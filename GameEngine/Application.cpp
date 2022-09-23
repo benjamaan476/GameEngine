@@ -41,6 +41,7 @@ void Application::initVulkan()
 	pickPhysicalDevice();
 	createLogicalDevice();
 	createSwapChain();
+	createImageViews();
 }
 
 void Application::mainLoop()
@@ -53,6 +54,10 @@ void Application::mainLoop()
 
 void Application::cleanup()
 {
+	for (auto imageView : swapchainImageViews) 
+	{
+		device.destroyImageView(imageView);
+	}
 	device.destroySwapchainKHR(swapchain);
 	device.destroy();
 	instance.destroySurfaceKHR(surface);
@@ -379,4 +384,30 @@ void Application::createSwapChain()
 	ENGINE_ASSERT(!swapchainImages.empty(), "Failed to retrieve swapchain images");
 	swapchainFormat = surfaceFormat.format;
 	swapchainExtent = extent;
+}
+
+void Application::createImageViews()
+{
+	swapchainImageViews.resize(swapchainImages.size());
+
+	for (int i = 0; i < swapchainImages.size(); i++)
+	{
+		vk::ImageViewCreateInfo createInfo{};
+
+		createInfo.setImage(swapchainImages[i]);
+		createInfo.setViewType(vk::ImageViewType::e2D);
+		createInfo.setFormat(swapchainFormat);
+		createInfo.setComponents(vk::ComponentMapping());
+
+		vk::ImageSubresourceRange subresourceRange{};
+		subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eColor);
+		subresourceRange.setBaseMipLevel(0);
+		subresourceRange.setLevelCount(1);
+		subresourceRange.setBaseArrayLayer(0);
+		subresourceRange.setLayerCount(1);
+
+		createInfo.setSubresourceRange(subresourceRange);
+
+		swapchainImageViews[i] = device.createImageView(createInfo);
+	}
 }
