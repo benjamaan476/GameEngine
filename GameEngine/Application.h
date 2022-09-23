@@ -6,6 +6,24 @@
 
 #include <optional>
 
+struct QueueFamilyIndices
+{
+	std::optional<uint32_t> graphicsFamily;
+	std::optional<uint32_t> presentFamily;
+
+	bool isComplete() const
+	{
+		return graphicsFamily.has_value() && presentFamily.has_value();
+	}
+};
+
+struct SwapChainSupportDetails
+{
+	vk::SurfaceCapabilitiesKHR capabilities;
+	std::vector<vk::SurfaceFormatKHR> formats;
+	std::vector<vk::PresentModeKHR> presentModes;
+};
+
 class Application
 {
 public:
@@ -20,17 +38,11 @@ private:
 
 	
 	bool isDeviceSuitable(const vk::PhysicalDevice& device) const;
-
-	struct QueueFamilyIndices
-	{
-		std::optional<uint32_t> graphicsFamily;
-		std::optional<uint32_t> presentFamily;
-
-		bool isComplete() const
-		{
-			return graphicsFamily.has_value() && presentFamily.has_value();
-		}
-	};
+	bool checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice) const;
+	SwapChainSupportDetails querySwapChainSupport(const vk::PhysicalDevice& physicsalDevice) const;
+	vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats) const;
+	vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes) const;
+	vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities) const;
 
 	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
 
@@ -38,6 +50,7 @@ private:
 	void createSurface();
 	void pickPhysicalDevice();
 	void createLogicalDevice();
+	void createSwapChain();
 
 	bool checkValidationLayerSupport() const;
 private:
@@ -52,11 +65,20 @@ private:
 	vk::Queue graphicsQueue;
 	vk::Queue presentQueue;
 	vk::SurfaceKHR surface;
+	vk::Format swapchainFormat;
+	vk::Extent2D swapchainExtent;
 
+	vk::SwapchainKHR swapchain;
+	std::vector<vk::Image> swapchainImages;
 
 	const std::vector<const char*> validationLayers =
 	{
 		"VK_LAYER_KHRONOS_validation",
+	};
+
+	const std::vector<const char*> deviceExtensions =
+	{
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
 #ifdef NDEBUG
