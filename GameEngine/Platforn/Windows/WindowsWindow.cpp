@@ -5,23 +5,54 @@ Window::SharedPtr WindowsWindow::create(const WindowProperties& properties)
 	return std::shared_ptr<WindowsWindow>(new WindowsWindow(properties));
 }
 
+vk::SurfaceKHR WindowsWindow::createSurface(const vk::Instance& instance)
+{
+	vk::SurfaceKHR surface;
+	glfwCreateWindowSurface(instance, window, nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));
+	return surface;
+}
+
 WindowsWindow::~WindowsWindow()
 {
 	Shutdown();
 }
 
-void WindowsWindow::OnUpdate()
+void WindowsWindow::OnUpdate() const
 {
+	glfwPollEvents();
+
+}
+
+bool WindowsWindow::isRunning() const
+{
+	return glfwWindowShouldClose(window);
+}
+
+std::vector<const char*> WindowsWindow::GetRequiredExtensions() const
+{
+	uint32_t extensionCount = 0;
+	auto extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
+	std::vector<const char*> extension(extensions, extensions + extensionCount);
+	return  extension;
 }
 
 void WindowsWindow::SetVSync(bool enable)
 {
-	//glfwWindowHint(GLFW_)
+	if (enable)
+	{
+		glfwSwapInterval(1);
+	}
+	else
+	{
+		glfwSwapInterval(0);
+	}
+
+	data.VSync = enable;
 }
 
 bool WindowsWindow::IsVSync() const
 {
-	return false;
+	return data.VSync;
 }
 
 WindowsWindow::WindowsWindow(const WindowProperties& properties)
@@ -41,7 +72,11 @@ WindowsWindow::WindowsWindow(const WindowProperties& properties)
 	}
 
 	window = glfwCreateWindow(data.width, data.height, data.title.data(), nullptr, nullptr);
+	glfwMakeContextCurrent(window);
+	glfwSetWindowUserPointer(window, &data);
+
 }
+
 
 void WindowsWindow::Shutdown()
 {
@@ -50,5 +85,4 @@ void WindowsWindow::Shutdown()
 		glfwDestroyWindow(window);
 		glfwTerminate();
 	}
-
 }

@@ -1,6 +1,11 @@
 #pragma once
 
-#include "../EngineCore.h"
+#include <vulkan/vulkan.hpp>
+
+#include <string>
+#include <memory>
+#include <functional>
+#include <tuple>
 
 struct WindowProperties
 {
@@ -16,7 +21,14 @@ public:
 	using SharedPtr = std::shared_ptr<Window>;
 	using EventCallback = std::function<void(void)>;
 
-	virtual ~Window() {}
+	static SharedPtr create(const WindowProperties& properties);
+	virtual vk::SurfaceKHR createSurface(const vk::Instance& instance) = 0;
+	virtual ~Window() = default;
+
+	virtual void OnUpdate() const = 0;
+	virtual bool isRunning() const = 0;
+	
+	virtual std::vector<const char*> GetRequiredExtensions() const = 0;
 
 	virtual uint32_t GetWidth() const = 0;
 	virtual uint32_t GetHeight() const = 0;
@@ -25,6 +37,6 @@ public:
 	virtual void SetVSync(bool enable) = 0;
 	virtual bool IsVSync() const = 0;
 
-	virtual void OnUpdate() = 0;
+
 };
 
