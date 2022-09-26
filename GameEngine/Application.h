@@ -1,9 +1,8 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 
+#include "Platforn/Window.h"
 #include <optional>
 
 struct QueueFamilyIndices
@@ -30,10 +29,16 @@ public:
 	Application(std::string_view name, uint32_t width, uint32_t height);
 	void run();
 
+	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+		VkDebugUtilsMessageTypeFlagsEXT messageType,
+		const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+		void* userData);
+
 private:
 	void initWindow(std::string_view name, uint32_t width, uint32_t height);
 	void initVulkan();
-	void mainLoop();
+	void mainLoop() const;
 	void cleanup();
 
 	
@@ -43,6 +48,7 @@ private:
 	vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats) const;
 	vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes) const;
 	vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities) const;
+	void setupDebugMessenger();
 
 	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
 
@@ -55,10 +61,8 @@ private:
 
 	bool checkValidationLayerSupport() const;
 private:
-	std::string name;
-	uint32_t width;
-	uint32_t height;
-	GLFWwindow* window = nullptr;
+
+	Window::SharedPtr window;
 
 	vk::Instance instance;
 	vk::PhysicalDevice physicalDevice = nullptr;
@@ -90,5 +94,11 @@ private:
 	const bool enableValidationLayers = true;
 #endif
 
+	VkDebugUtilsMessengerEXT debugMessenger;
+	vk::PhysicalDevice physicalDevice = VK_NULL_HANDLE;
+	vk::Device device;
+	vk::Queue graphicsQueue;
+	vk::Queue presentQueue;
+	vk::SurfaceKHR surface;
 };
 

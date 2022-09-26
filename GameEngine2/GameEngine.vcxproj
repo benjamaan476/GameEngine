@@ -144,6 +144,7 @@
     <ClCompile Include="imgui_example.cpp" />
     <ClCompile Include="Log\Log.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Platforn\Window.cpp" />
     <ClCompile Include="Platforn\Windows\WindowsWindow.cpp" />
   </ItemGroup>
   <ItemGroup>

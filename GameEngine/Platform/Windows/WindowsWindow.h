@@ -1,31 +1,37 @@
 #pragma once
-
+#define VK_USE_PLATFORM_WIN32_KHR
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+
+#include <vulkan/vulkan.hpp>
 
 #include "../Window.h"
-#include "../../EngineCore.h"
 
 class WindowsWindow : public Window
 {
 public:
-	Window::SharedPtr create(const WindowProperties& properties);
-	virtual ~WindowsWindow() override;
+	static Window::SharedPtr create(const WindowProperties& properties);
+	vk::SurfaceKHR createSurface(const vk::Instance& instance) override;
+	~WindowsWindow() override;
 
-	void OnUpdate() override;
+	void OnUpdate() const override;
+	bool isRunning() const override;
 
-	inline uint32_t GetWidth() const override { return data.width; }
-	inline uint32_t GetHeight() const override { return data.height; }
+	std::vector<const char*> GetRequiredExtensions() const override;
 
-	void SetEventCallback(const EventCallback& callback)  override { data.callback = callback; }
+	uint32_t GetWidth() const override { return data.width; }
+	uint32_t GetHeight() const override { return data.height; }
+
+	void SetEventCallback(const EventCallback& callback) override { data.callback = callback; }
 	void SetVSync(bool enable) override;
 	bool IsVSync() const override;
 private:
-	WindowsWindow(const WindowProperties& properties);
-
+	explicit WindowsWindow(const WindowProperties& properties);
 	virtual void Shutdown();
 
 private:
-
 	static inline bool isGLFWInitialised = false;
 
 	GLFWwindow* window;
@@ -35,6 +41,10 @@ private:
 		uint32_t width;
 		uint32_t height;
 		EventCallback callback;
+
+		bool VSync;
 	} data;
+
+	vk::SurfaceKHR surface;
 };
 
