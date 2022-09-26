@@ -15,7 +15,7 @@ include_directories(${Vulkan_INCLUDE_DIRS})
 file(GLOB_RECURSE HEADER_FILES ${PROJECT_SOURCE_DIR}/*.h)
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/*.cpp)
 
-add_compile_definitions(_PROJECT_DIR_="${PROJECT_SOURCE_DIR}")
+add_compile_definitions(_PROJECT_DIR_="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add source to this project's executable.
 add_executable (GameEngine "main.cpp" "Application.cpp" "Application.h" "Log/Log.h" "Log/Log.cpp" "Platform/Window.h" "Platform/Window.cpp" "Platform/Windows/WindowsWindow.h" "Platform/Windows/WindowsWindow.cpp" "EngineCore.h")

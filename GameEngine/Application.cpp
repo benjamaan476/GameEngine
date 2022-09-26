@@ -471,9 +471,9 @@ void Application::createImageViews()
 
 void Application::createGrphicsPipeline()
 {
-	std::filesystem::path vertShader("C:/Users/bencr/Projects/GameEngine/x64/Debug/shaders/vert.spv");
+	std::filesystem::path vertShader("vert.spv");
 	auto vertShaderCode = readShader(vertShader);
-	auto fragShaderCode = readShader("C:/Users/bencr/Projects/GameEngine/x64/Debug/shaders/frag.spv");
+	auto fragShaderCode = readShader("frag.spv");
 
 	vertShaderModule = createShaderModule(vertShaderCode);
 	fragShaderModule = createShaderModule(fragShaderCode);
@@ -591,7 +591,23 @@ vk::ShaderModule Application::createShaderModule(const std::vector<char>& code)
 
 std::vector<char> Application::readShader(const std::filesystem::path& filePath)
 {
-	std::ifstream file(filePath.c_str(), std::ios::ate | std::ios::binary);
+	std::filesystem::path shaderPath;
+
+	for (const auto& path : gShaderDirectories)
+	{
+		auto pathToShader = path / filePath;
+		if (std::filesystem::exists(pathToShader))
+		{
+			pathToShader = std::filesystem::canonical(pathToShader);
+			shaderPath = pathToShader;
+			break;
+		}
+	}
+	if (!std::filesystem::exists(shaderPath))
+	{
+		return {};
+	}
+	std::ifstream file(shaderPath.c_str(), std::ios::ate | std::ios::binary);
 
 	if (!file.is_open())
 	{
