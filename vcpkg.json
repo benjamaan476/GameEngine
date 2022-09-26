@@ -4,6 +4,9 @@
     "dependencies": [
         "glm",
         "glfw3",
-        "spdlog"
+      "spdlog",
+      "vulkan",
+      "vulkan-hpp"
+
     ]
 }

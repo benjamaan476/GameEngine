@@ -1,4 +1,3 @@
-#include "EngineCore.h"
 #include "Application.h"
 #include "Log/Log.h"
 
@@ -53,12 +52,13 @@ void Application::initWindow(std::string_view name, uint32_t width, uint32_t hei
 void Application::initVulkan()
 {
 	createInstance();
+	setupDebugMessenger();
 	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
 	createSwapChain();
 	createImageViews();
-	setupDebugMessenger();
+	createGrphicsPipeline();
 }
 
 void Application::mainLoop() const
@@ -67,22 +67,6 @@ void Application::mainLoop() const
 	{
 		window->OnUpdate();
 	}
-}
-
-void Application::cleanup()
-{
-	for (auto imageView : swapchainImageViews) 
-	{
-		device.destroyImageView(imageView);
-	}
-	device.destroySwapchainKHR(swapchain);
-	device.destroy();
-	instance.destroySurfaceKHR(surface);
-	if (enableValidationLayers)
-	{
-		DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-	}
-	instance.destroy();
 }
 
 bool Application::isDeviceSuitable(const vk::PhysicalDevice& device) const
@@ -159,13 +143,11 @@ vk::Extent2D Application::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& cap
 	}
 	else
 	{
-		int width, height;
-		glfwGetFramebufferSize(window, &width, &height);
-
+		auto [width, height] = window->getFramebufferSize();
 		vk::Extent2D actualExtent =
 		{
-			(uint32_t)width, 
-			(uint32_t)height
+			width, 
+			height
 		};
 
 		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
@@ -223,7 +205,7 @@ void Application::createInstance()
 		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	}
 
-	createInfo.setEnabledExtensionCount(extensions.size());
+	createInfo.setEnabledExtensionCount((uint32_t)extensions.size());
 	createInfo.ppEnabledExtensionNames = extensions.data();
 	createInfo.setEnabledLayerCount(0);
 
@@ -244,7 +226,7 @@ void Application::createInstance()
 
 void Application::createSurface()
 {
-	glfwCreateWindowSurface(instance, window, nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));
+	surface = window->createSurface(instance);
 }
 
 void Application::pickPhysicalDevice()
@@ -294,15 +276,15 @@ void Application::createLogicalDevice()
 
 	vk::DeviceCreateInfo deviceCreateInfo{};
 	deviceCreateInfo.setPQueueCreateInfos(deviceQueueCreateInfos.data());
-	deviceCreateInfo.setQueueCreateInfoCount(deviceQueueCreateInfos.size());
+	deviceCreateInfo.setQueueCreateInfoCount((uint32_t)deviceQueueCreateInfos.size());
 	deviceCreateInfo.setPEnabledFeatures(&physicalDeviceFeatures);
 
-	deviceCreateInfo.setEnabledExtensionCount(deviceExtensions.size());
+	deviceCreateInfo.setEnabledExtensionCount((uint32_t)deviceExtensions.size());
 	deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
 	if (enableValidationLayers)
 	{
-		deviceCreateInfo.setEnabledLayerCount(validationLayers.size());
+		deviceCreateInfo.setEnabledLayerCount((uint32_t)validationLayers.size());
 		deviceCreateInfo.ppEnabledLayerNames = validationLayers.data();
 	}
 	else
@@ -326,8 +308,8 @@ void Application::setupDebugMessenger()
 {
 	if (!enableValidationLayers)
 	{
-	}
 		return;
+	} 
 
 	VkDebugUtilsMessengerCreateInfoEXT createInfo{};
 	createInfo.messageSeverity = 
@@ -344,12 +326,38 @@ void Application::setupDebugMessenger()
 	createInfo.pUserData = nullptr;
 	createInfo.pfnUserCallback = debugCallback;
 
+
 	if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
-	}
 	{
 		ENGINE_ASSERT("{0}", "Failed to set up debug messenger");
-	
+	}
 }
+
+VkResult Application::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* debugMessenger)
+{
+	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+
+	if (func != nullptr)
+	{
+		return func(instance, createInfo, allocator, debugMessenger);
+	}
+	else
+	{
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+
+}
+
+void Application::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator)
+{
+	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+
+	if (func != nullptr)
+	{
+		func(instance, debugMessenger, allocator);
+	}
+}
+
 
 bool Application::checkValidationLayerSupport() const
 {
@@ -460,3 +468,162 @@ void Application::createImageViews()
 		swapchainImageViews[i] = device.createImageView(createInfo);
 	}
 }
+
+void Application::createGrphicsPipeline()
+{
+	std::filesystem::path vertShader("C:/Users/bencr/Projects/GameEngine/x64/Debug/shaders/vert.spv");
+	auto vertShaderCode = readShader(vertShader);
+	auto fragShaderCode = readShader("C:/Users/bencr/Projects/GameEngine/x64/Debug/shaders/frag.spv");
+
+	vertShaderModule = createShaderModule(vertShaderCode);
+	fragShaderModule = createShaderModule(fragShaderCode);
+
+	vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
+	vertShaderStageInfo.setStage(vk::ShaderStageFlagBits::eVertex);
+	vertShaderStageInfo.setModule(vertShaderModule);
+	vertShaderStageInfo.setPName("main");
+
+	vk::PipelineShaderStageCreateInfo fragShaderStageInfo{};
+	vertShaderStageInfo.setStage(vk::ShaderStageFlagBits::eFragment);
+	vertShaderStageInfo.setModule(fragShaderModule);
+	vertShaderStageInfo.setPName("main");
+
+	vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+	std::vector<vk::DynamicState> dynamicStates =
+	{
+		vk::DynamicState::eViewport,
+		vk::DynamicState::eScissor
+	};
+
+	vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
+
+	dynamicStateCreateInfo.setDynamicStateCount(dynamicStates.size());
+	dynamicStateCreateInfo.setPDynamicStates(dynamicStates.data());
+
+	vk::PipelineVertexInputStateCreateInfo vertexInptInfo{};
+	vertexInptInfo.setVertexBindingDescriptionCount(0);
+	vertexInptInfo.setVertexBindingDescriptions(nullptr);
+	vertexInptInfo.setVertexAttributeDescriptionCount(0);
+	vertexInptInfo.setVertexAttributeDescriptions(nullptr);
+
+	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
+	inputAssembly.setTopology(vk::PrimitiveTopology::eTriangleList);
+	inputAssembly.setPrimitiveRestartEnable(false);
+
+	vk::Viewport viewport{};
+	viewport.setX(0.f);
+	viewport.setY(0.f);
+	viewport.setWidth((float)swapchainExtent.width);
+	viewport.setHeight((float)swapchainExtent.height);
+	viewport.setMinDepth(0.f);
+	viewport.setMaxDepth(1.f);
+
+	vk::Rect2D scissor{};
+	scissor.setOffset({ 0, 0 });
+	scissor.setExtent(swapchainExtent);
+
+	vk::PipelineViewportStateCreateInfo viewportState{};
+	viewportState.setViewportCount(1);
+	viewportState.setPViewports(&viewport);
+	viewportState.setScissorCount(1);
+	viewportState.setPScissors(&scissor);
+
+	vk::PipelineRasterizationStateCreateInfo rasterizer{};
+	rasterizer.setDepthClampEnable(false);
+	rasterizer.setRasterizerDiscardEnable(false);
+	rasterizer.setPolygonMode(vk::PolygonMode::eFill);
+	rasterizer.setLineWidth(1.f);
+	rasterizer.setCullMode(vk::CullModeFlagBits::eBack);
+	rasterizer.setFrontFace(vk::FrontFace::eClockwise);
+
+	rasterizer.setDepthBiasEnable(false);
+	rasterizer.setDepthBiasConstantFactor(0.f);
+	rasterizer.setDepthBiasClamp(0.f);
+	rasterizer.setDepthBiasSlopeFactor(0.f);
+
+	vk::PipelineMultisampleStateCreateInfo multiSample{};
+
+	multiSample.setSampleShadingEnable(false);
+	multiSample.setRasterizationSamples(vk::SampleCountFlagBits::e1);
+	multiSample.setMinSampleShading(1.f);
+	multiSample.setPSampleMask(nullptr);
+	multiSample.setAlphaToCoverageEnable(false);
+	multiSample.setAlphaToOneEnable(false);
+
+	vk::PipelineColorBlendAttachmentState colourBlenderAttachment{};
+	colourBlenderAttachment.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
+	colourBlenderAttachment.setBlendEnable(true);
+	colourBlenderAttachment.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha);
+	colourBlenderAttachment.setDstColorBlendFactor(vk::BlendFactor::eSrc1Alpha);
+	colourBlenderAttachment.setColorBlendOp(vk::BlendOp::eAdd);
+	colourBlenderAttachment.setSrcAlphaBlendFactor(vk::BlendFactor::eOne);
+	colourBlenderAttachment.setDstAlphaBlendFactor(vk::BlendFactor::eZero);
+	colourBlenderAttachment.setAlphaBlendOp(vk::BlendOp::eAdd);
+
+	vk::PipelineColorBlendStateCreateInfo colourBlending{};
+	colourBlending.setLogicOpEnable(false);
+	colourBlending.setLogicOp(vk::LogicOp::eCopy);
+	colourBlending.setAttachmentCount(1);
+	colourBlending.setPAttachments(&colourBlenderAttachment);
+	colourBlending.setBlendConstants({ 0.f, 0.f, 0.f, 0.f });
+
+
+	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+	pipelineLayoutInfo.setLayoutCount = 0;
+	pipelineLayoutInfo.pSetLayouts = nullptr;
+	pipelineLayoutInfo.setPushConstantRangeCount(0);
+	pipelineLayoutInfo.setPPushConstantRanges(nullptr);
+
+
+	pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
+
+}
+vk::ShaderModule Application::createShaderModule(const std::vector<char>& code)
+{
+	vk::ShaderModuleCreateInfo createInfo{};
+
+	createInfo.setCodeSize(code.size());
+	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+	return device.createShaderModule(createInfo);
+}
+
+std::vector<char> Application::readShader(const std::filesystem::path& filePath)
+{
+	std::ifstream file(filePath.c_str(), std::ios::ate | std::ios::binary);
+
+	if (!file.is_open())
+	{
+		ENGINE_ASSERT(false, "Failed to open file");
+	}
+
+	auto fileSize = file.tellg();
+	std::vector<char> buffer(fileSize);
+
+	file.seekg(0);
+	file.read(buffer.data(), fileSize);
+
+	file.close();
+	return buffer;
+}
+
+void Application::cleanup()
+{
+	device.destroyPipelineLayout(pipelineLayout);
+	device.destroyShaderModule(fragShaderModule);
+	device.destroyShaderModule(vertShaderModule);
+	for (auto& imageView : swapchainImageViews)
+	{
+		device.destroyImageView(imageView);
+	}
+	device.destroySwapchainKHR(swapchain);
+	device.destroy();
+	instance.destroySurfaceKHR(surface);
+	if (enableValidationLayers)
+	{
+		DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+	}
+	instance.destroy();
+}
+

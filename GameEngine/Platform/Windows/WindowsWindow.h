@@ -27,6 +27,9 @@ public:
 	void SetEventCallback(const EventCallback& callback) override { data.callback = callback; }
 	void SetVSync(bool enable) override;
 	bool IsVSync() const override;
+
+	std::pair<uint32_t, uint32_t> getFramebufferSize() const override;
+
 private:
 	explicit WindowsWindow(const WindowProperties& properties);
 	virtual void Shutdown();

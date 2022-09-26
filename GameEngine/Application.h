@@ -1,9 +1,10 @@
 #pragma once
-#include <vulkan/vulkan.hpp>
+#include "EngineCore.h"
 
-
-#include "Platforn/Window.h"
+#include "Platform/Window.h"
 #include <optional>
+#include <filesystem>
+#include <fstream>
 
 struct QueueFamilyIndices
 {
@@ -36,6 +37,46 @@ public:
 		void* userData);
 
 private:
+
+	const static inline std::filesystem::path& getExecutableDirectory()
+	{
+		static std::filesystem::path directory;
+		if (directory.empty())
+		{
+			directory = std::filesystem::current_path();
+		}
+
+		return directory;
+	}
+
+	static inline std::vector<std::filesystem::path> getInitialShaderDirectories()
+	{
+		std::filesystem::path projectDir(_PROJECT_DIR_);
+
+		std::vector<std::filesystem::path> developmentDirectories =
+		{
+			// First we search in source folders.
+			projectDir,
+			projectDir / "..",
+			projectDir / ".." / "Tools" / "FalcorTest",
+			// Then we search in deployment folder (necessary to pickup NVAPI and other third-party shaders).
+			getExecutableDirectory() / "shaders",
+		};
+
+		std::vector<std::filesystem::path> deploymentDirectories =
+		{
+			getExecutableDirectory() / "Shaders",
+		};
+
+#ifdef NDEBUG
+			return deploymentDirectories;
+#else
+		return developmentDirectories;
+#endif
+	}
+
+	const static inline std::vector<std::filesystem::path> gShaderDirectories = getInitialShaderDirectories();
+
 	void initWindow(std::string_view name, uint32_t width, uint32_t height);
 	void initVulkan();
 	void mainLoop() const;
@@ -49,6 +90,9 @@ private:
 	vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes) const;
 	vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities) const;
 	void setupDebugMessenger();
+	bool checkValidationLayerSupport() const;
+	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* debugMessenger);
+	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator);
 
 	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
 
@@ -58,13 +102,16 @@ private:
 	void createLogicalDevice();
 	void createSwapChain();
 	void createImageViews();
+	void createGrphicsPipeline();
+	vk::ShaderModule createShaderModule(const std::vector<char>& code);
 
-	bool checkValidationLayerSupport() const;
+	static std::vector<char> readShader(const std::filesystem::path& file);
 private:
 
 	Window::SharedPtr window;
 
 	vk::Instance instance;
+	VkDebugUtilsMessengerEXT debugMessenger;
 	vk::PhysicalDevice physicalDevice = nullptr;
 	vk::Device device{};
 	vk::Queue graphicsQueue;
@@ -76,7 +123,9 @@ private:
 	vk::SwapchainKHR swapchain;
 	std::vector<vk::Image> swapchainImages;
 	std::vector<vk::ImageView> swapchainImageViews;
-
+	vk::ShaderModule vertShaderModule;
+	vk::ShaderModule fragShaderModule;
+	vk::PipelineLayout pipelineLayout;
 
 	const std::vector<const char*> validationLayers =
 	{
@@ -94,11 +143,6 @@ private:
 	const bool enableValidationLayers = true;
 #endif
 
-	VkDebugUtilsMessengerEXT debugMessenger;
-	vk::PhysicalDevice physicalDevice = VK_NULL_HANDLE;
-	vk::Device device;
-	vk::Queue graphicsQueue;
-	vk::Queue presentQueue;
-	vk::SurfaceKHR surface;
+
 };
 

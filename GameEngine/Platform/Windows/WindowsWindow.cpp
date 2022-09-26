@@ -55,6 +55,14 @@ bool WindowsWindow::IsVSync() const
 	return data.VSync;
 }
 
+std::pair<uint32_t, uint32_t> WindowsWindow::getFramebufferSize() const
+{
+	int width, height;
+	glfwGetFramebufferSize(window, &width, &height);
+
+	return {(uint32_t)width, (uint32_t)height};
+}
+
 WindowsWindow::WindowsWindow(const WindowProperties& properties)
 {
 	data = WindowData
