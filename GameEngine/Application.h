@@ -101,7 +101,16 @@ private:
 	void createLogicalDevice();
 	void createSwapChain();
 	void createImageViews();
-	void createGrphicsPipeline();
+	void createRenderPass();
+	void createGraphicsPipeline();
+	void createFramebuffers();
+	void createCommandPool();
+	void createCommandBuffer();
+	void createSyncObjects();
+
+	void recordCommandBuffer(const vk::CommandBuffer& commandBuffer, uint32_t imageIndex) const;
+
+	void drawFrame() const;
 	vk::ShaderModule createShaderModule(const std::vector<char>& code);
 
 	static std::vector<char> readShader(const std::filesystem::path& file);
@@ -124,7 +133,16 @@ private:
 	std::vector<vk::ImageView> swapchainImageViews;
 	vk::ShaderModule vertShaderModule;
 	vk::ShaderModule fragShaderModule;
+	vk::RenderPass renderPass;
 	vk::PipelineLayout pipelineLayout;
+	vk::Pipeline graphicsPipeline;
+	std::vector<vk::Framebuffer> swapChainFramebuffers;
+	vk::CommandPool commandPool;
+	vk::CommandBuffer commandBuffer;
+
+	vk::Semaphore imageAvailableSemaphore;
+	vk::Semaphore renderFinishedSemaphore;
+	vk::Fence inFlightFence;
 
 	const std::vector<const char*> validationLayers =
 	{
