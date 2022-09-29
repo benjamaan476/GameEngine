@@ -38,6 +38,6 @@ public:
 	virtual bool IsVSync() const = 0;
 
 	virtual std::pair<uint32_t, uint32_t> getFramebufferSize() const = 0;
-
+	virtual void waitEvents() = 0;
 };
 

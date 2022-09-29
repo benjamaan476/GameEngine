@@ -56,17 +56,17 @@ void Application::initVulkan()
 	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
-	createSwapChain();
+	createSwapchain();
 	createImageViews();
 	createRenderPass();
 	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
-	createCommandBuffer();
+	createCommandBuffers();
 	createSyncObjects();
 }
 
-void Application::mainLoop() const
+void Application::mainLoop()
 {
 	while (!window->isRunning())
 	{
@@ -389,7 +389,7 @@ bool Application::checkValidationLayerSupport() const
 	return std::ranges::all_of(validationLayers, validate);
 }
 
-void Application::createSwapChain()
+void Application::createSwapchain()
 {
 	auto swapChainSupportDetails = querySwapChainSupport(physicalDevice);
 
@@ -660,6 +660,7 @@ void Application::createGraphicsPipeline()
 
 void Application::createFramebuffers()
 {
+	swapChainFramebuffers.resize(0);
 	for (const auto& swapchainImageView : swapchainImageViews)
 	{
 		vk::ImageView attachments[] =
@@ -669,8 +670,8 @@ void Application::createFramebuffers()
 
 		vk::FramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.setRenderPass(renderPass);
-		framebufferInfo.setAttachmentCount(1);
-		framebufferInfo.setPAttachments(attachments);
+		//framebufferInfo.setAttachmentCount(1);
+		framebufferInfo.setAttachments(swapchainImageView);
 		framebufferInfo.setWidth(swapchainExtent.width);
 		framebufferInfo.setHeight(swapchainExtent.height);
 		framebufferInfo.setLayers(1);
@@ -691,39 +692,69 @@ void Application::createCommandPool()
 	commandPool = device.createCommandPool(poolInfo);
 }
 
-void Application::createCommandBuffer()
+void Application::createCommandBuffers()
 {
+	commandBuffers.resize(MaxFramesInFlight);
+
 	vk::CommandBufferAllocateInfo allocInfo{};
 	allocInfo.setCommandPool(commandPool);
 	allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
-	allocInfo.setCommandBufferCount(1);
+	allocInfo.setCommandBufferCount(commandBuffers.size());
 
-	commandBuffer = device.allocateCommandBuffers(allocInfo)[0];
-	if (commandBuffer == vk::CommandBuffer{})
+	commandBuffers = device.allocateCommandBuffers(allocInfo);
+
+	for (const auto& commandBuffer : commandBuffers)
 	{
-		ENGINE_ASSERT(false, "Failed to create command buffer");
+		if (commandBuffer == vk::CommandBuffer{})
+		{
+			ENGINE_ASSERT(false, "Failed to create command buffer");
+		}
 	}
 }
 
 void Application::createSyncObjects()
 {
-	vk::SemaphoreCreateInfo semaphoreInfo{};
-	vk::FenceCreateInfo fenceInfo{};
-	fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
+	imageAvailableSemaphores.resize(MaxFramesInFlight);
+	renderFinishedSemaphores.resize(MaxFramesInFlight);
+	inFlightFences.resize(MaxFramesInFlight);
 
-	imageAvailableSemaphore = device.createSemaphore(semaphoreInfo);
-	renderFinishedSemaphore = device.createSemaphore(semaphoreInfo);
-	inFlightFence = device.createFence(fenceInfo);
+	for (int i = 0; i < MaxFramesInFlight; i++)
+	{
+		vk::SemaphoreCreateInfo semaphoreInfo{};
+		vk::FenceCreateInfo fenceInfo{};
+		fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
+		imageAvailableSemaphores[i] = device.createSemaphore(semaphoreInfo);
+		renderFinishedSemaphores[i] = device.createSemaphore(semaphoreInfo);
+		inFlightFences[i] = device.createFence(fenceInfo);
+	}
 
 }
 
-void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffer, uint32_t imageIndex) const
+void Application::recreateSwapChain()
+{
+	auto [width, height] = window->getFramebufferSize();
+
+	while (width == 0 || height == 0)
+	{
+		std::tie(width, height) = window->getFramebufferSize();
+		window->waitEvents();
+	}
+	device.waitIdle();
+
+	cleanupSwapchain();
+
+	createSwapchain();
+	createImageViews();
+	createFramebuffers();
+}
+
+void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, uint32_t imageIndex) const
 {
 	vk::CommandBufferBeginInfo beginInfo{};
 	beginInfo.setPInheritanceInfo(nullptr);
 
-	commandBuffer.begin(beginInfo);
+	commandBuffers.begin(beginInfo);
 
 	vk::RenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.setRenderPass(renderPass);
@@ -736,8 +767,8 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffer, ui
 	renderPassInfo.setClearValueCount(1);
 	renderPassInfo.setPClearValues(&clearColour);
 
-	commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+	commandBuffers.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+	commandBuffers.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
 
 	vk::Viewport viewport{};
 	viewport.setX(0.f);
@@ -747,57 +778,82 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffer, ui
 	viewport.setMinDepth(0.f);
 	viewport.setMaxDepth(1.f);
 
-	commandBuffer.setViewport(0, viewport);
+	commandBuffers.setViewport(0, viewport);
 
 	vk::Rect2D scissor{};
 	scissor.setOffset({ 0,0 });
 	scissor.setExtent(swapchainExtent);
 
-	commandBuffer.setScissor(0, scissor);
+	commandBuffers.setScissor(0, scissor);
 
 
-	commandBuffer.draw(3, 1, 0, 0);
+	commandBuffers.draw(3, 1, 0, 0);
 
-	commandBuffer.endRenderPass();
-	commandBuffer.end();
+	commandBuffers.endRenderPass();
+	commandBuffers.end();
 }
 
-void Application::drawFrame() const
+void Application::drawFrame() 
 {
-	device.waitForFences(inFlightFence, true, UINT64_MAX);
-	device.resetFences(inFlightFence);
+	device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
 
-	uint32_t imageIndex = device.acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphore, nullptr);
-	commandBuffer.reset();
-	recordCommandBuffer(commandBuffer, imageIndex);
+	uint32_t imageIndex = 0;
+	auto result = device.acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], nullptr, &imageIndex);
+
+	if (result == vk::Result::eErrorOutOfDateKHR)
+	{
+		recreateSwapChain();
+		return;
+	}
+	else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+	{
+		ENGINE_ASSERT(false, "Failed to acquire next image");
+	}
+
+	device.resetFences(inFlightFences[currentFrame]);
+
+	commandBuffers[currentFrame].reset();
+	recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
 	vk::SubmitInfo submitInfo{};
 	
-	vk::Semaphore waitSemaphore[] = { imageAvailableSemaphore };
+	vk::Semaphore waitSemaphore[] = { imageAvailableSemaphores[currentFrame]};
 
 	vk::PipelineStageFlags waitStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
 	submitInfo.setWaitSemaphoreCount(1);
-	submitInfo.setWaitSemaphores(imageAvailableSemaphore);
+	submitInfo.setWaitSemaphores(imageAvailableSemaphores[currentFrame]);
 	submitInfo.setWaitDstStageMask(waitStages);
-	submitInfo.setCommandBufferCount(1);
-	submitInfo.setCommandBuffers(commandBuffer);
+	//submitInfo.setCommandBufferCount(1);
+	submitInfo.setCommandBuffers(commandBuffers[currentFrame]);
 	
-	submitInfo.setSignalSemaphoreCount(1);
-	submitInfo.setSignalSemaphores(renderFinishedSemaphore);
+	//submitInfo.setSignalSemaphoreCount(1);
+	submitInfo.setSignalSemaphores(renderFinishedSemaphores[currentFrame]);
 
-	graphicsQueue.submit(submitInfo, inFlightFence);
+	graphicsQueue.submit(submitInfo, inFlightFences[currentFrame]);
 
 	vk::PresentInfoKHR presentInfo{}; 
-	presentInfo.setWaitSemaphoreCount(1);
-	presentInfo.setWaitSemaphores(renderFinishedSemaphore);
+	//presentInfo.setWaitSemaphoreCount(1);
+	presentInfo.setWaitSemaphores(renderFinishedSemaphores[currentFrame]);
 
 	//presentInfo.setSwapchainCount(1);
 	presentInfo.setSwapchains(swapchain);
 	presentInfo.setImageIndices(imageIndex);
 	//presentInfo.setResults(nullptr);
 
-	presentQueue.presentKHR(presentInfo);
+	result = presentQueue.presentKHR(&presentInfo);
+
+	if (result == vk::Result::eErrorOutOfDateKHR)
+	{
+		recreateSwapChain();
+		return;
+	}
+	else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+	{
+		ENGINE_ASSERT(false, "Failed to acquire next image");
+	}
+
+	currentFrame = (currentFrame + 1) % MaxFramesInFlight;
 }
 
 vk::ShaderModule Application::createShaderModule(const std::vector<char>& code)
@@ -847,25 +903,23 @@ std::vector<char> Application::readShader(const std::filesystem::path& filePath)
 
 void Application::cleanup()
 {
-	device.destroyFence(inFlightFence);
-	device.destroySemaphore(renderFinishedSemaphore);
-	device.destroySemaphore(imageAvailableSemaphore);
-	device.destroyCommandPool(commandPool);
-	for (auto framebuffer : swapChainFramebuffers)
+
+	cleanupSwapchain();
+	for (int i = 0; i < MaxFramesInFlight; i++)
 	{
-		device.destroyFramebuffer(framebuffer);
+		device.destroyFence(inFlightFences[i]);
+		device.destroySemaphore(renderFinishedSemaphores[i]);
+		device.destroySemaphore(imageAvailableSemaphores[i]);
 	}
+	device.destroyCommandPool(commandPool);
+
 
 	device.destroyPipeline(graphicsPipeline);
 	device.destroyPipelineLayout(pipelineLayout);
 	device.destroyRenderPass(renderPass);
 	device.destroyShaderModule(fragShaderModule);
 	device.destroyShaderModule(vertShaderModule);
-	for (auto& imageView : swapchainImageViews)
-	{
-		device.destroyImageView(imageView);
-	}
-	device.destroySwapchainKHR(swapchain);
+
 	device.destroy();
 	instance.destroySurfaceKHR(surface);
 	if (enableValidationLayers)
@@ -873,5 +927,20 @@ void Application::cleanup()
 		DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 	}
 	instance.destroy();
+}
+
+void Application::cleanupSwapchain()
+{
+	for (auto framebuffer : swapChainFramebuffers)
+	{
+		device.destroyFramebuffer(framebuffer);
+	}
+
+	for (auto& imageView : swapchainImageViews)
+	{
+		device.destroyImageView(imageView);
+	}
+
+	device.destroySwapchainKHR(swapchain);
 }
 

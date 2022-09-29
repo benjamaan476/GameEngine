@@ -29,7 +29,7 @@ public:
 	bool IsVSync() const override;
 
 	std::pair<uint32_t, uint32_t> getFramebufferSize() const override;
-
+	void waitEvents() override;
 private:
 	explicit WindowsWindow(const WindowProperties& properties);
 	virtual void Shutdown();

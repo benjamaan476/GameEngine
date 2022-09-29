@@ -63,6 +63,11 @@ std::pair<uint32_t, uint32_t> WindowsWindow::getFramebufferSize() const
 	return {(uint32_t)width, (uint32_t)height};
 }
 
+void WindowsWindow::waitEvents()
+{
+	glfwWaitEvents();
+}
+
 WindowsWindow::WindowsWindow(const WindowProperties& properties)
 {
 	data = WindowData

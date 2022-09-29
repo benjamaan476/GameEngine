@@ -6,6 +6,9 @@
 #include <filesystem>
 #include <fstream>
 
+#include <imgui.h>
+#include <imgui_impl_vulkan.h>
+
 struct QueueFamilyIndices
 {
 	std::optional<uint32_t> graphicsFamily;
@@ -78,9 +81,9 @@ private:
 
 	void initWindow(std::string_view name, uint32_t width, uint32_t height);
 	void initVulkan();
-	void mainLoop() const;
+	void mainLoop();
 	void cleanup();
-
+	void cleanupSwapchain();
 	
 	bool isDeviceSuitable(const vk::PhysicalDevice& device) const;
 	bool checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice) const;
@@ -99,18 +102,20 @@ private:
 	void createSurface();
 	void pickPhysicalDevice();
 	void createLogicalDevice();
-	void createSwapChain();
+	void createSwapchain();
 	void createImageViews();
 	void createRenderPass();
 	void createGraphicsPipeline();
 	void createFramebuffers();
 	void createCommandPool();
-	void createCommandBuffer();
+	void createCommandBuffers();
 	void createSyncObjects();
 
-	void recordCommandBuffer(const vk::CommandBuffer& commandBuffer, uint32_t imageIndex) const;
+	void recreateSwapChain();
 
-	void drawFrame() const;
+	void recordCommandBuffer(const vk::CommandBuffer& commandBuffers, uint32_t imageIndex) const;
+
+	void drawFrame();
 	vk::ShaderModule createShaderModule(const std::vector<char>& code);
 
 	static std::vector<char> readShader(const std::filesystem::path& file);
@@ -138,11 +143,11 @@ private:
 	vk::Pipeline graphicsPipeline;
 	std::vector<vk::Framebuffer> swapChainFramebuffers;
 	vk::CommandPool commandPool;
-	vk::CommandBuffer commandBuffer;
+	std::vector<vk::CommandBuffer> commandBuffers;
 
-	vk::Semaphore imageAvailableSemaphore;
-	vk::Semaphore renderFinishedSemaphore;
-	vk::Fence inFlightFence;
+	std::vector<vk::Semaphore> imageAvailableSemaphores;
+	std::vector<vk::Semaphore> renderFinishedSemaphores;
+	std::vector<vk::Fence> inFlightFences;
 
 	const std::vector<const char*> validationLayers =
 	{
@@ -160,6 +165,8 @@ private:
 	const bool enableValidationLayers = true;
 #endif
 
+	uint32_t currentFrame = 0;
+	const int MaxFramesInFlight = 2;
 
 };
 

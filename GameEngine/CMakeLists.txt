@@ -7,10 +7,12 @@ find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 include_directories(${GLM_INCLUDE_DIRS})
 include_directories(${GLFW_INCLUDE_DIRS})
 include_directories(${Vulkan_INCLUDE_DIRS})
+include_directories(${Imgui_INCLUDE_DIRS})
 
 file(GLOB_RECURSE HEADER_FILES ${PROJECT_SOURCE_DIR}/*.h)
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/*.cpp)
@@ -24,7 +26,7 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET GameEngine PROPERTY CXX_STANDARD 20)
 endif()
 
-target_link_libraries(GameEngine PRIVATE glm::glm glfw ${Vulkan_LIBRARIES} spdlog::spdlog)
+target_link_libraries(GameEngine PRIVATE glm::glm glfw ${Vulkan_LIBRARIES} spdlog::spdlog imgui::imgui)
 
 
 # TODO: Add tests and install targets if needed.
