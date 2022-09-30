@@ -284,8 +284,7 @@ void Application::createLogicalDevice()
 	auto physicalDeviceFeatures = physicalDevice.getFeatures();
 
 	vk::DeviceCreateInfo deviceCreateInfo{};
-	deviceCreateInfo.setPQueueCreateInfos(deviceQueueCreateInfos.data());
-	deviceCreateInfo.setQueueCreateInfoCount((uint32_t)deviceQueueCreateInfos.size());
+	deviceCreateInfo.setQueueCreateInfos(deviceQueueCreateInfos);
 	deviceCreateInfo.setPEnabledFeatures(&physicalDeviceFeatures);
 
 	deviceCreateInfo.setEnabledExtensionCount((uint32_t)deviceExtensions.size());
@@ -382,6 +381,69 @@ uint32_t Application::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlag
 
 	ENGINE_ASSERT(false, "Failed to find suitable memory type");
 	return -1;
+}
+
+void Application::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory)
+{
+	vk::BufferCreateInfo bufferInfo{};
+	bufferInfo.setSize(size);
+	bufferInfo.setUsage(usage);
+	bufferInfo.setSharingMode(vk::SharingMode::eExclusive);
+
+	buffer = device.createBuffer(bufferInfo);
+
+	if (buffer == vk::Buffer{})
+	{
+		ENGINE_ASSERT(false, "Failed to create vertex buffer");
+	}
+
+	auto memoryRequirements = device.getBufferMemoryRequirements(buffer);
+
+	vk::MemoryAllocateInfo allocInfo{};
+	allocInfo.setAllocationSize(memoryRequirements.size);
+	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
+
+	bufferMemory = device.allocateMemory(allocInfo);
+
+	if (bufferMemory == vk::DeviceMemory{})
+	{
+		ENGINE_ASSERT(false, "Failed to allocate vertex memory");
+	}
+
+	device.bindBufferMemory(buffer, bufferMemory, 0);
+}
+
+void Application::copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
+{
+	vk::CommandBufferAllocateInfo allocInfo{};
+
+	allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
+	allocInfo.setCommandPool(commandPool);
+	allocInfo.setCommandBufferCount(1);
+
+	auto commandBuffer = device.allocateCommandBuffers(allocInfo)[0];
+
+	vk::CommandBufferBeginInfo beginInfo{};
+	beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+
+	commandBuffer.begin(beginInfo);
+
+	vk::BufferCopy copyRegion{};
+	copyRegion.setSrcOffset(0);
+	copyRegion.setDstOffset(0);
+	copyRegion.setSize(size);
+
+	commandBuffer.copyBuffer(srcBuffer, dstBuffer, copyRegion);
+
+	commandBuffer.end();
+
+	vk::SubmitInfo submitInfo{};
+	submitInfo.setCommandBuffers(commandBuffer);
+	
+	graphicsQueue.submit(submitInfo, {});
+	graphicsQueue.waitIdle();
+
+	device.freeCommandBuffers(commandPool, commandBuffer);
 }
 
 
@@ -513,8 +575,7 @@ void Application::createRenderPass()
 
 	vk::SubpassDescription subpass{};
 	subpass.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
-	subpass.setColorAttachmentCount(1);
-	subpass.setPColorAttachments(&colourAttachmentRef);
+	subpass.setColorAttachments(colourAttachmentRef);
 
 	vk::SubpassDependency dependency{};
 	dependency.setSrcSubpass(VK_SUBPASS_EXTERNAL);
@@ -525,11 +586,8 @@ void Application::createRenderPass()
 	dependency.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
 
 	vk::RenderPassCreateInfo renderPassInfo{};
-	renderPassInfo.setAttachmentCount(1);
-	renderPassInfo.setPAttachments(&colourAttachment);
-	renderPassInfo.setSubpassCount(1);
-	renderPassInfo.setPSubpasses(&subpass);
-	renderPassInfo.setDependencyCount(1);
+	renderPassInfo.setAttachments(colourAttachment);
+	renderPassInfo.setSubpasses(subpass);
 	renderPassInfo.setDependencies(dependency);
 
 	renderPass = device.createRenderPass(renderPassInfo);
@@ -569,8 +627,7 @@ void Application::createGraphicsPipeline()
 
 	vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
 
-	dynamicStateCreateInfo.setDynamicStateCount(dynamicStates.size());
-	dynamicStateCreateInfo.setPDynamicStates(dynamicStates.data());
+	dynamicStateCreateInfo.setDynamicStates(dynamicStates);
 
 	auto bindingDescription = Vertex::getBindingDescription();
 	auto attributeDescription = Vertex::getAttributeDescription();
@@ -596,10 +653,8 @@ void Application::createGraphicsPipeline()
 	scissor.setExtent(swapchainExtent);
 
 	vk::PipelineViewportStateCreateInfo viewportState{};
-	viewportState.setViewportCount(1);
-	viewportState.setPViewports(&viewport);
-	viewportState.setScissorCount(1);
-	viewportState.setPScissors(&scissor);
+	viewportState.setViewports(viewport);
+	viewportState.setScissors(scissor);
 
 	vk::PipelineRasterizationStateCreateInfo rasterizer{};
 	rasterizer.setDepthClampEnable(false);
@@ -636,8 +691,7 @@ void Application::createGraphicsPipeline()
 	vk::PipelineColorBlendStateCreateInfo colourBlending{};
 	colourBlending.setLogicOpEnable(false);
 	colourBlending.setLogicOp(vk::LogicOp::eCopy);
-	colourBlending.setAttachmentCount(1);
-	colourBlending.setPAttachments(&colourBlenderAttachment);
+	colourBlending.setAttachments(colourBlenderAttachment);
 	colourBlending.setBlendConstants({ 0.f, 0.f, 0.f, 0.f });
 
 
@@ -713,38 +767,24 @@ void Application::createCommandPool()
 
 void Application::createVertexBuffer()
 {
-	vk::BufferCreateInfo bufferInfo{};
-	bufferInfo.setSize(sizeof(vertices[0]) * vertices.size());
-	bufferInfo.setUsage(vk::BufferUsageFlagBits::eVertexBuffer);
-	bufferInfo.setSharingMode(vk::SharingMode::eExclusive);
+	vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-	vertexBuffer = device.createBuffer(bufferInfo);
+	vk::Buffer stagingBuffer;
+	vk::DeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, stagingBuffer, stagingBufferMemory);
 
-	if (vertexBuffer == vk::Buffer{})
-	{
-		ENGINE_ASSERT(false, "Failed to create vertex buffer");
-	}
+	auto data = device.mapMemory(stagingBufferMemory, 0, bufferSize);
 
-	auto memoryRequirements = device.getBufferMemoryRequirements(vertexBuffer);
+	std::memcpy(data, vertices.data(), bufferSize);
 
-	vk::MemoryAllocateInfo allocInfo{};
-	allocInfo.setAllocationSize(memoryRequirements.size);
-	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
+	device.unmapMemory(stagingBufferMemory);
 
-	auto vertexBufferMemory = device.allocateMemory(allocInfo);
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, vertexBuffer, vertexBufferMemory);
 
-	if (vertexBufferMemory == vk::DeviceMemory{})
-	{
-		ENGINE_ASSERT(false, "Failed to allocate vertex memory");
-	}
+	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
 
-	device.bindBufferMemory(vertexBuffer, vertexBufferMemory, 0);
-
-	auto data = device.mapMemory(vertexBufferMemory, 0, bufferInfo.size);
-
-	std::memcpy(data, vertices.data(), bufferInfo.size);
-
-	device.unmapMemory(vertexBufferMemory);
+	device.destroyBuffer(stagingBuffer);
+	device.freeMemory(stagingBufferMemory);
 }
 
 void Application::createCommandBuffers()
@@ -819,8 +859,7 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, u
 	vk::ClearColorValue clearValue;
 	clearValue.setFloat32({ 0.f, 0.f, 0.f, 1.f });
 	vk::ClearValue clearColour{ clearValue};
-	renderPassInfo.setClearValueCount(1);
-	renderPassInfo.setPClearValues(&clearColour);
+	renderPassInfo.setClearValues(clearColour);
 
 	commandBuffers.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 	commandBuffers.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
@@ -970,6 +1009,7 @@ void Application::cleanup()
 		device.destroySemaphore(imageAvailableSemaphores[i]);
 	}
 	device.destroyCommandPool(commandPool);
+	
 	device.destroyBuffer(vertexBuffer);
 	device.freeMemory(vertexBufferMemory);
 	device.destroyPipeline(graphicsPipeline);
