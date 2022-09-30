@@ -62,6 +62,7 @@ void Application::initVulkan()
 	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
+	createVertexBuffer();
 	createCommandBuffers();
 	createSyncObjects();
 }
@@ -320,6 +321,7 @@ void Application::setupDebugMessenger()
 	} 
 
 	VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	createInfo.messageSeverity = 
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
 		| VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
@@ -364,6 +366,22 @@ void Application::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtil
 	{
 		func(instance, debugMessenger, allocator);
 	}
+}
+
+uint32_t Application::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
+{
+	auto memoryProperties = physicalDevice.getMemoryProperties();
+
+	for (auto i = 0; i < memoryProperties.memoryTypeCount; i++)
+	{
+		if (typeFilter & (1 << i) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+		{
+			return i;
+		}
+	}
+
+	ENGINE_ASSERT(false, "Failed to find suitable memory type");
+	return -1;
 }
 
 
@@ -554,11 +572,12 @@ void Application::createGraphicsPipeline()
 	dynamicStateCreateInfo.setDynamicStateCount(dynamicStates.size());
 	dynamicStateCreateInfo.setPDynamicStates(dynamicStates.data());
 
+	auto bindingDescription = Vertex::getBindingDescription();
+	auto attributeDescription = Vertex::getAttributeDescription();
+
 	vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-	vertexInputInfo.setVertexBindingDescriptionCount(0);
-	vertexInputInfo.setVertexBindingDescriptions(nullptr);
-	vertexInputInfo.setVertexAttributeDescriptionCount(0);
-	vertexInputInfo.setVertexAttributeDescriptions(nullptr);
+	vertexInputInfo.setVertexBindingDescriptions(bindingDescription);
+	vertexInputInfo.setVertexAttributeDescriptions(attributeDescription);
 
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
 	inputAssembly.setTopology(vk::PrimitiveTopology::eTriangleList);
@@ -646,7 +665,7 @@ void Application::createGraphicsPipeline()
 	pipelineInfo.setLayout(pipelineLayout);
 	pipelineInfo.setRenderPass(renderPass);
 	pipelineInfo.setSubpass(0);
-	pipelineInfo.setBasePipelineIndex(VK_NULL_HANDLE);
+	//pipelineInfo.setBasePipelineHandle(VK_NULL_HANDLE);
 	pipelineInfo.setBasePipelineIndex(-1);
 
 	vk::PipelineCache cache{};
@@ -690,6 +709,42 @@ void Application::createCommandPool()
 	poolInfo.setQueueFamilyIndex(queuFamilyIndices.graphicsFamily.value());
 
 	commandPool = device.createCommandPool(poolInfo);
+}
+
+void Application::createVertexBuffer()
+{
+	vk::BufferCreateInfo bufferInfo{};
+	bufferInfo.setSize(sizeof(vertices[0]) * vertices.size());
+	bufferInfo.setUsage(vk::BufferUsageFlagBits::eVertexBuffer);
+	bufferInfo.setSharingMode(vk::SharingMode::eExclusive);
+
+	vertexBuffer = device.createBuffer(bufferInfo);
+
+	if (vertexBuffer == vk::Buffer{})
+	{
+		ENGINE_ASSERT(false, "Failed to create vertex buffer");
+	}
+
+	auto memoryRequirements = device.getBufferMemoryRequirements(vertexBuffer);
+
+	vk::MemoryAllocateInfo allocInfo{};
+	allocInfo.setAllocationSize(memoryRequirements.size);
+	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
+
+	auto vertexBufferMemory = device.allocateMemory(allocInfo);
+
+	if (vertexBufferMemory == vk::DeviceMemory{})
+	{
+		ENGINE_ASSERT(false, "Failed to allocate vertex memory");
+	}
+
+	device.bindBufferMemory(vertexBuffer, vertexBufferMemory, 0);
+
+	auto data = device.mapMemory(vertexBufferMemory, 0, bufferInfo.size);
+
+	std::memcpy(data, vertices.data(), bufferInfo.size);
+
+	device.unmapMemory(vertexBufferMemory);
 }
 
 void Application::createCommandBuffers()
@@ -770,6 +825,9 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, u
 	commandBuffers.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 	commandBuffers.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
 
+	vk::DeviceSize offsets = { 0 };
+	commandBuffers.bindVertexBuffers(0, vertexBuffer, offsets);
+
 	vk::Viewport viewport{};
 	viewport.setX(0.f);
 	viewport.setY(0.f);
@@ -787,7 +845,7 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, u
 	commandBuffers.setScissor(0, scissor);
 
 
-	commandBuffers.draw(3, 1, 0, 0);
+	commandBuffers.draw(vertices.size(), 1, 0, 0);
 
 	commandBuffers.endRenderPass();
 	commandBuffers.end();
@@ -912,8 +970,8 @@ void Application::cleanup()
 		device.destroySemaphore(imageAvailableSemaphores[i]);
 	}
 	device.destroyCommandPool(commandPool);
-
-
+	device.destroyBuffer(vertexBuffer);
+	device.freeMemory(vertexBufferMemory);
 	device.destroyPipeline(graphicsPipeline);
 	device.destroyPipelineLayout(pipelineLayout);
 	device.destroyRenderPass(renderPass);

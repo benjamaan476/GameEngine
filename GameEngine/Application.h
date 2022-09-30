@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 
+#include <glm/glm.hpp>
+
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 
@@ -26,6 +28,38 @@ struct SwapChainSupportDetails
 	std::vector<vk::SurfaceFormatKHR> formats;
 	std::vector<vk::PresentModeKHR> presentModes;
 };
+
+struct Vertex
+{
+	glm::vec2 pos;
+	glm::vec3 colour;
+
+	static vk::VertexInputBindingDescription getBindingDescription()
+	{
+		vk::VertexInputBindingDescription bindingDescription{};
+		bindingDescription.setBinding(0);
+		bindingDescription.setStride(sizeof(Vertex));
+		bindingDescription.setInputRate(vk::VertexInputRate::eVertex);
+		return bindingDescription;
+	}
+
+	static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescription()
+	{
+	std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
+
+	attributeDescriptions[0].setBinding(0);
+	attributeDescriptions[0].setLocation(0);
+	attributeDescriptions[0].setFormat(vk::Format::eR32G32Sfloat);
+	attributeDescriptions[0].setOffset(offsetof(Vertex, pos));
+
+	attributeDescriptions[1].setBinding(0);
+	attributeDescriptions[1].setLocation(1);
+	attributeDescriptions[1].setFormat(vk::Format::eR32G32B32Sfloat);
+	attributeDescriptions[1].setOffset(offsetof(Vertex, colour));
+		return attributeDescriptions;
+	}
+};
+
 
 class Application
 {
@@ -71,7 +105,7 @@ private:
 		};
 
 #ifdef NDEBUG
-			return deploymentDirectories;
+		return deploymentDirectories;
 #else
 		return developmentDirectories;
 #endif
@@ -84,7 +118,7 @@ private:
 	void mainLoop();
 	void cleanup();
 	void cleanupSwapchain();
-	
+
 	bool isDeviceSuitable(const vk::PhysicalDevice& device) const;
 	bool checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice) const;
 	SwapChainSupportDetails querySwapChainSupport(const vk::PhysicalDevice& physicsalDevice) const;
@@ -95,6 +129,7 @@ private:
 	bool checkValidationLayerSupport() const;
 	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* debugMessenger);
 	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator);
+	uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const;
 
 	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
 
@@ -108,6 +143,7 @@ private:
 	void createGraphicsPipeline();
 	void createFramebuffers();
 	void createCommandPool();
+	void createVertexBuffer();
 	void createCommandBuffers();
 	void createSyncObjects();
 
@@ -143,12 +179,21 @@ private:
 	vk::Pipeline graphicsPipeline;
 	std::vector<vk::Framebuffer> swapChainFramebuffers;
 	vk::CommandPool commandPool;
+	vk::Buffer vertexBuffer;
+	vk::DeviceMemory vertexBufferMemory;
 	std::vector<vk::CommandBuffer> commandBuffers;
 
 	std::vector<vk::Semaphore> imageAvailableSemaphores;
 	std::vector<vk::Semaphore> renderFinishedSemaphores;
 	std::vector<vk::Fence> inFlightFences;
 
+	const std::vector<Vertex> vertices =
+	{
+		{{0.f, -0.5f}, {1.f, 1.f, 1.f} },
+		{ {0.5f, 0.5f }, { 0.f, 1.f, 0.f }},
+		{{-0.5f, 0.5f}, {0.f, 0.f, 1.f}}
+	};
+	
 	const std::vector<const char*> validationLayers =
 	{
 		"VK_LAYER_KHRONOS_validation",
