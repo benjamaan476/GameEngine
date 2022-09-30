@@ -59,11 +59,15 @@ void Application::initVulkan()
 	createSwapchain();
 	createImageViews();
 	createRenderPass();
+	createDescriptorSetLayout();
 	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
 	createVertexBuffer();
 	createIndexBuffer();
+	createUniformBuffers();
+	createDescriptorPool();
+	createDescriptorSets();
 	createCommandBuffers();
 	createSyncObjects();
 }
@@ -599,6 +603,21 @@ void Application::createRenderPass()
 	}
 }
 
+void Application::createDescriptorSetLayout()
+{
+	vk::DescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.setBinding(0);
+	uboLayoutBinding.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+	uboLayoutBinding.setDescriptorCount(1);
+	uboLayoutBinding.setStageFlags(vk::ShaderStageFlagBits::eVertex);
+	uboLayoutBinding.setPImmutableSamplers(nullptr);
+
+	vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.setBindings(uboLayoutBinding);
+	descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+
+}
+
 void Application::createGraphicsPipeline()
 {
 	std::filesystem::path vertShader("vert.spv");
@@ -663,7 +682,7 @@ void Application::createGraphicsPipeline()
 	rasterizer.setPolygonMode(vk::PolygonMode::eFill);
 	rasterizer.setLineWidth(1.f);
 	rasterizer.setCullMode(vk::CullModeFlagBits::eBack);
-	rasterizer.setFrontFace(vk::FrontFace::eClockwise);
+	rasterizer.setFrontFace(vk::FrontFace::eCounterClockwise);
 
 	rasterizer.setDepthBiasEnable(false);
 	rasterizer.setDepthBiasConstantFactor(0.f);
@@ -697,11 +716,9 @@ void Application::createGraphicsPipeline()
 
 
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
-	pipelineLayoutInfo.setLayoutCount = 0;
-	pipelineLayoutInfo.pSetLayouts = nullptr;
 	pipelineLayoutInfo.setPushConstantRangeCount(0);
 	pipelineLayoutInfo.setPPushConstantRanges(nullptr);
-
+	pipelineLayoutInfo.setSetLayouts(descriptorSetLayout);
 
 	pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
 
@@ -811,6 +828,66 @@ void Application::createIndexBuffer()
 	device.freeMemory(stagingBufferMemory);
 }
 
+void Application::createUniformBuffers()
+{
+	vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+
+	uboBuffers.resize(MaxFramesInFlight);
+	uboBuffersMemory.resize(MaxFramesInFlight);
+
+	for (auto i = 0; i < MaxFramesInFlight; i++)
+	{
+		createBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, uboBuffers[i], uboBuffersMemory[i]);
+	}
+}
+
+void Application::createDescriptorPool()
+{
+	vk::DescriptorPoolSize poolSize{};
+	poolSize.setType(vk::DescriptorType::eUniformBuffer);
+	poolSize.setDescriptorCount(MaxFramesInFlight);
+
+	vk::DescriptorPoolCreateInfo poolInfo{};
+	//poolInfo.setPoolSizeCount(1);
+	poolInfo.setPoolSizes(poolSize);
+	poolInfo.setMaxSets(MaxFramesInFlight);
+
+	descriptorPool = device.createDescriptorPool(poolInfo);
+}
+
+void Application::createDescriptorSets()
+{
+	std::vector<vk::DescriptorSetLayout> layouts(MaxFramesInFlight, descriptorSetLayout);
+
+	vk::DescriptorSetAllocateInfo allocInfo{};
+	allocInfo.setDescriptorPool(descriptorPool);
+	allocInfo.setDescriptorSetCount(MaxFramesInFlight);
+	allocInfo.setSetLayouts(layouts);
+
+	descriptorSets = device.allocateDescriptorSets(allocInfo);
+
+
+	for (auto i = 0; i < MaxFramesInFlight; i++)
+	{
+		vk::DescriptorBufferInfo bufferInfo{};
+		bufferInfo.setBuffer(uboBuffers[i]);
+		bufferInfo.setOffset(0);
+		bufferInfo.setRange(sizeof(UniformBufferObject));
+
+		vk::WriteDescriptorSet descriptorWrite{};
+		descriptorWrite.setDstSet(descriptorSets[i]);
+		descriptorWrite.setDstBinding(0);
+		descriptorWrite.setDstArrayElement(0);
+		descriptorWrite.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+		descriptorWrite.setBufferInfo(bufferInfo);
+		descriptorWrite.setImageInfo(nullptr);
+		descriptorWrite.setTexelBufferView(nullptr);
+		descriptorWrite.setDescriptorCount(1);
+
+		device.updateDescriptorSets(descriptorWrite, nullptr);
+	}
+}
+
 void Application::createCommandBuffers()
 {
 	commandBuffers.resize(MaxFramesInFlight);
@@ -848,6 +925,27 @@ void Application::createSyncObjects()
 		inFlightFences[i] = device.createFence(fenceInfo);
 	}
 
+}
+
+void Application::updateUniformBuffer(uint32_t currentImage)
+{
+	static auto startTime = std::chrono::high_resolution_clock::now();
+
+	auto currentTime = std::chrono::high_resolution_clock::now();
+
+	auto time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+	UniformBufferObject ubo{};
+	ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(90.f), glm::vec3(0.f, 0.f, 1.f));
+	ubo.view = glm::lookAt(glm::vec3(2.f, 2.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+	ubo.proj = glm::perspective(glm::radians(45.f), swapchainExtent.width / (float)swapchainExtent.height, 0.1f, 10.f);
+	ubo.proj[1][1] *= -1;
+
+	auto data = device.mapMemory(uboBuffersMemory[currentImage], 0, sizeof(ubo));
+
+	std::memcpy(data, &ubo, sizeof(ubo));
+
+	device.unmapMemory(uboBuffersMemory[currentImage]);
 }
 
 void Application::recreateSwapChain()
@@ -891,6 +989,7 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, u
 	vk::DeviceSize offsets = { 0 };
 	commandBuffers.bindVertexBuffers(0, vertexBuffer, offsets);
 	commandBuffers.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+	commandBuffers.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
 
 	vk::Viewport viewport{};
 	viewport.setX(0.f);
@@ -933,6 +1032,8 @@ void Application::drawFrame()
 	}
 
 	device.resetFences(inFlightFences[currentFrame]);
+
+	updateUniformBuffer(currentFrame);
 
 	commandBuffers[currentFrame].reset();
 	recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
@@ -1033,13 +1134,20 @@ void Application::cleanup()
 		device.destroySemaphore(renderFinishedSemaphores[i]);
 		device.destroySemaphore(imageAvailableSemaphores[i]);
 	}
+	device.destroyDescriptorPool(descriptorPool);
 	device.destroyCommandPool(commandPool);
 	
 	device.destroyBuffer(vertexBuffer);
 	device.freeMemory(vertexBufferMemory);
 	device.destroyBuffer(indexBuffer);
 	device.freeMemory(indexBufferMemory);
+	for (int i = 0; i < MaxFramesInFlight; i++)
+	{
+		device.destroyBuffer(uboBuffers[i]);
+		device.freeMemory(uboBuffersMemory[i]);
+	}
 
+	device.destroyDescriptorSetLayout(descriptorSetLayout);
 	device.destroyPipeline(graphicsPipeline);
 	device.destroyPipelineLayout(pipelineLayout);
 	device.destroyRenderPass(renderPass);

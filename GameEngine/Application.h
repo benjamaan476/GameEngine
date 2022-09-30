@@ -6,7 +6,11 @@
 #include <filesystem>
 #include <fstream>
 
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
 
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
@@ -142,13 +146,18 @@ private:
 	void createSwapchain();
 	void createImageViews();
 	void createRenderPass();
+	void createDescriptorSetLayout();
 	void createGraphicsPipeline();
 	void createFramebuffers();
 	void createCommandPool();
 	void createVertexBuffer();
 	void createIndexBuffer();
+	void createUniformBuffers();
+	void createDescriptorPool();
+	void createDescriptorSets();
 	void createCommandBuffers();
 	void createSyncObjects();
+	void updateUniformBuffer(uint32_t currentImage);
 
 	void recreateSwapChain();
 
@@ -178,14 +187,22 @@ private:
 	vk::ShaderModule vertShaderModule;
 	vk::ShaderModule fragShaderModule;
 	vk::RenderPass renderPass;
+	vk::DescriptorSetLayout descriptorSetLayout;
+	vk::DescriptorPool descriptorPool;
+	std::vector<vk::DescriptorSet> descriptorSets;
 	vk::PipelineLayout pipelineLayout;
 	vk::Pipeline graphicsPipeline;
 	std::vector<vk::Framebuffer> swapChainFramebuffers;
 	vk::CommandPool commandPool;
+	
 	vk::Buffer vertexBuffer;
 	vk::DeviceMemory vertexBufferMemory;
 	vk::Buffer indexBuffer;
 	vk::DeviceMemory indexBufferMemory;
+	std::vector<vk::Buffer> uboBuffers;
+	std::vector<vk::DeviceMemory> uboBuffersMemory;
+
+
 	std::vector<vk::CommandBuffer> commandBuffers;
 
 	std::vector<vk::Semaphore> imageAvailableSemaphores;
@@ -203,6 +220,13 @@ private:
 	const std::vector<uint32_t> indices =
 	{
 		0, 1, 2, 2, 3, 0
+	};
+
+	struct UniformBufferObject
+	{
+		glm::mat4 model;
+		glm::mat4 view;
+		glm::mat4 proj;
 	};
 
 	const std::vector<const char*> validationLayers =
