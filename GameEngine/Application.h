@@ -146,6 +146,7 @@ private:
 	void createFramebuffers();
 	void createCommandPool();
 	void createVertexBuffer();
+	void createIndexBuffer();
 	void createCommandBuffers();
 	void createSyncObjects();
 
@@ -183,6 +184,8 @@ private:
 	vk::CommandPool commandPool;
 	vk::Buffer vertexBuffer;
 	vk::DeviceMemory vertexBufferMemory;
+	vk::Buffer indexBuffer;
+	vk::DeviceMemory indexBufferMemory;
 	std::vector<vk::CommandBuffer> commandBuffers;
 
 	std::vector<vk::Semaphore> imageAvailableSemaphores;
@@ -191,11 +194,17 @@ private:
 
 	const std::vector<Vertex> vertices =
 	{
-		{{0.f, -0.5f}, {1.f, 1.f, 1.f} },
-		{ {0.5f, 0.5f }, { 0.f, 1.f, 0.f }},
-		{{-0.5f, 0.5f}, {0.f, 0.f, 1.f}}
+		{{-0.5f, -0.5f}, {1.f, 0.f, 0.f} },
+		{ {0.5f, -0.5f }, { 0.f, 1.f, 0.f }},
+		{{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
+		{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}}
 	};
 	
+	const std::vector<uint32_t> indices =
+	{
+		0, 1, 2, 2, 3, 0
+	};
+
 	const std::vector<const char*> validationLayers =
 	{
 		"VK_LAYER_KHRONOS_validation",

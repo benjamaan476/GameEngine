@@ -63,6 +63,7 @@ void Application::initVulkan()
 	createFramebuffers();
 	createCommandPool();
 	createVertexBuffer();
+	createIndexBuffer();
 	createCommandBuffers();
 	createSyncObjects();
 }
@@ -787,6 +788,29 @@ void Application::createVertexBuffer()
 	device.freeMemory(stagingBufferMemory);
 }
 
+void Application::createIndexBuffer()
+{
+	vk::DeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+	vk::Buffer stagingBuffer;
+	vk::DeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, stagingBuffer, stagingBufferMemory);
+
+	auto data = device.mapMemory(stagingBufferMemory, 0, bufferSize);
+
+	std::memcpy(data, indices.data(), bufferSize);
+
+	device.unmapMemory(stagingBufferMemory);
+
+
+	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, indexBuffer, indexBufferMemory);
+
+	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+	device.destroyBuffer(stagingBuffer);
+	device.freeMemory(stagingBufferMemory);
+}
+
 void Application::createCommandBuffers()
 {
 	commandBuffers.resize(MaxFramesInFlight);
@@ -866,6 +890,7 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, u
 
 	vk::DeviceSize offsets = { 0 };
 	commandBuffers.bindVertexBuffers(0, vertexBuffer, offsets);
+	commandBuffers.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
 
 	vk::Viewport viewport{};
 	viewport.setX(0.f);
@@ -884,7 +909,7 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, u
 	commandBuffers.setScissor(0, scissor);
 
 
-	commandBuffers.draw(vertices.size(), 1, 0, 0);
+	commandBuffers.drawIndexed(indices.size(), 1, 0, 0, 0);
 
 	commandBuffers.endRenderPass();
 	commandBuffers.end();
@@ -1012,6 +1037,9 @@ void Application::cleanup()
 	
 	device.destroyBuffer(vertexBuffer);
 	device.freeMemory(vertexBufferMemory);
+	device.destroyBuffer(indexBuffer);
+	device.freeMemory(indexBufferMemory);
+
 	device.destroyPipeline(graphicsPipeline);
 	device.destroyPipelineLayout(pipelineLayout);
 	device.destroyRenderPass(renderPass);
