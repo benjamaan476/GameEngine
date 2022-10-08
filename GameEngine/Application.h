@@ -15,6 +15,7 @@
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 
+
 struct QueueFamilyIndices
 {
 	std::optional<uint32_t> graphicsFamily;
@@ -37,6 +38,7 @@ struct Vertex
 {
 	glm::vec2 pos;
 	glm::vec3 colour;
+	glm::vec2 tex;
 
 	static vk::VertexInputBindingDescription getBindingDescription()
 	{
@@ -47,19 +49,24 @@ struct Vertex
 		return bindingDescription;
 	}
 
-	static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescription()
+	static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescription()
 	{
-	std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
+		std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
 
-	attributeDescriptions[0].setBinding(0);
-	attributeDescriptions[0].setLocation(0);
-	attributeDescriptions[0].setFormat(vk::Format::eR32G32Sfloat);
-	attributeDescriptions[0].setOffset(offsetof(Vertex, pos));
+		attributeDescriptions[0].setBinding(0);
+		attributeDescriptions[0].setLocation(0);
+		attributeDescriptions[0].setFormat(vk::Format::eR32G32Sfloat);
+		attributeDescriptions[0].setOffset(offsetof(Vertex, pos));
 
-	attributeDescriptions[1].setBinding(0);
-	attributeDescriptions[1].setLocation(1);
-	attributeDescriptions[1].setFormat(vk::Format::eR32G32B32Sfloat);
-	attributeDescriptions[1].setOffset(offsetof(Vertex, colour));
+		attributeDescriptions[1].setBinding(0);
+		attributeDescriptions[1].setLocation(1);
+		attributeDescriptions[1].setFormat(vk::Format::eR32G32B32Sfloat);
+		attributeDescriptions[1].setOffset(offsetof(Vertex, colour));
+
+		attributeDescriptions[2].setBinding(0);
+		attributeDescriptions[2].setLocation(2);
+		attributeDescriptions[2].setFormat(vk::Format::eR32G32Sfloat);
+		attributeDescriptions[2].setOffset(offsetof(Vertex, tex));
 		return attributeDescriptions;
 	}
 };
@@ -115,7 +122,33 @@ private:
 #endif
 	}
 
+	static inline std::vector<std::filesystem::path> getInitialTextureDirectories()
+	{
+		std::filesystem::path projectDir(_PROJECT_DIR_);
+		projectDir = projectDir.make_preferred();
+		std::vector<std::filesystem::path> developmentDirectories =
+		{
+			// First we search in source folders.
+			projectDir,
+			projectDir / "textures",
+			// Then we search in deployment folder (necessary to pickup NVAPI and other third-party shaders).
+			getExecutableDirectory() / "textures",
+		};
+
+		std::vector<std::filesystem::path> deploymentDirectories =
+		{
+			getExecutableDirectory() / "textures",
+		};
+
+#ifdef NDEBUG
+		return deploymentDirectories;
+#else
+		return developmentDirectories;
+#endif
+	}
+
 	const static inline std::vector<std::filesystem::path> gShaderDirectories = getInitialShaderDirectories();
+	const static inline std::vector<std::filesystem::path> gTextureDirectories = getInitialTextureDirectories();
 
 	void initWindow(std::string_view name, uint32_t width, uint32_t height);
 	void initVulkan();
@@ -138,6 +171,14 @@ private:
 	void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
 	void copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
 	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
+	void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Image& image, vk::DeviceMemory& imageMemory);
+	vk::ImageView createImageView(const vk::Image& image, const vk::Format& format);
+	void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+
+	void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
+
+	vk::CommandBuffer beginSingleTimeCommand();
+	void endSingleTimeCommand(vk::CommandBuffer commandBuffer);
 
 	void createInstance();
 	void createSurface();
@@ -150,6 +191,9 @@ private:
 	void createGraphicsPipeline();
 	void createFramebuffers();
 	void createCommandPool();
+	void createTextureImage();
+	void createTextureImageView();
+	void createTextureSampler();
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void createUniformBuffers();
@@ -202,6 +246,10 @@ private:
 	std::vector<vk::Buffer> uboBuffers;
 	std::vector<vk::DeviceMemory> uboBuffersMemory;
 
+	vk::Image textureImage;
+	vk::DeviceMemory textureImageMemory;
+	vk::ImageView textureImageView;
+	vk::Sampler textureSampler;
 
 	std::vector<vk::CommandBuffer> commandBuffers;
 
@@ -211,10 +259,10 @@ private:
 
 	const std::vector<Vertex> vertices =
 	{
-		{{-0.5f, -0.5f}, {1.f, 0.f, 0.f} },
-		{ {0.5f, -0.5f }, { 0.f, 1.f, 0.f }},
-		{{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
-		{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}}
+		{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
+		{ {0.5f, -0.5f }, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
+		{{0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
+		{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}}
 	};
 	
 	const std::vector<uint32_t> indices =

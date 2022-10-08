@@ -9,10 +9,11 @@
     "vulkan-hpp",
     {
       "name": "imgui",
-      "default-features":  false,
+      "default-features": false,
       "features": [
         "vulkan-binding"
       ]
-    }
+    },
+    "stb"
   ]
 }
