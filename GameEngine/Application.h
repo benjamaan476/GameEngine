@@ -1,5 +1,6 @@
 #pragma once
 #include "EngineCore.h"
+#include "RendererState.h"
 
 #include "Image.h"
 
@@ -173,13 +174,9 @@ private:
 	void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
 	void copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
 	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
-	void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+	std::vector<Image> getSwapchainImages(vk::SwapchainKHR swapchain);
 
-	vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
-	vk::Format findDepthFormat();
 	bool hasStencilComponent(vk::Format format) const;
-
-	void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
 
 	vk::CommandBuffer beginSingleTimeCommand();
 	void endSingleTimeCommand(vk::CommandBuffer commandBuffer);
@@ -196,7 +193,6 @@ private:
 	void createCommandPool();
 	void createDepthResources();
 	void createTextureImage();
-	void createTextureImageView();
 	void createTextureSampler();
 	void createVertexBuffer();
 	void createIndexBuffer();
@@ -219,19 +215,15 @@ private:
 
 	Window::SharedPtr window;
 
-	vk::Instance instance;
+	RendererState state{};
 	VkDebugUtilsMessengerEXT debugMessenger;
-	vk::PhysicalDevice physicalDevice = nullptr;
-	vk::Device device{};
-	vk::Queue graphicsQueue;
 	vk::Queue presentQueue;
 	vk::SurfaceKHR surface;
 	vk::Format swapchainFormat;
 	vk::Extent2D swapchainExtent;
 
 	vk::SwapchainKHR swapchain;
-	std::vector<vk::Image> swapchainImages;
-	std::vector<vk::ImageView> swapchainImageViews;
+	std::vector<Image> swapchainImages;
 	vk::ShaderModule vertShaderModule;
 	vk::ShaderModule fragShaderModule;
 	vk::RenderPass renderPass;
@@ -241,7 +233,6 @@ private:
 	vk::PipelineLayout pipelineLayout;
 	vk::Pipeline graphicsPipeline;
 	std::vector<vk::Framebuffer> swapChainFramebuffers;
-	vk::CommandPool commandPool;
 	
 	vk::Buffer vertexBuffer;
 	vk::DeviceMemory vertexBufferMemory;
@@ -253,7 +244,7 @@ private:
 	Image textureImage{};
 	vk::Sampler textureSampler;
 
-	Image depthImage{};
+	DepthImage depthImage{};
 
 
 	std::vector<vk::CommandBuffer> commandBuffers;

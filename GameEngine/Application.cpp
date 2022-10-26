@@ -68,7 +68,6 @@ void Application::initVulkan()
 	createDepthResources();
 	createFramebuffers();
 	createTextureImage();
-	createTextureImageView();
 	createTextureSampler();
 	createVertexBuffer();
 	createIndexBuffer();
@@ -87,7 +86,7 @@ void Application::mainLoop()
 		drawFrame();
 	}
 
-	device.waitIdle();
+	state.device.waitIdle();
 }
 
 bool Application::isDeviceSuitable(const vk::PhysicalDevice& device) const
@@ -101,7 +100,7 @@ bool Application::isDeviceSuitable(const vk::PhysicalDevice& device) const
 	auto swapChainSupport = querySwapChainSupport(device);
 	auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
+	return properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
 }
 
 bool Application::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice) const
@@ -206,128 +205,23 @@ QueueFamilyIndices Application::findQueueFamiles(const vk::PhysicalDevice& devic
 	return indices;
 }
 
-void Application::transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
-{
-	auto commandBuffer = beginSingleTimeCommand();
 
-	vk::ImageMemoryBarrier barrier{};
-	barrier.setOldLayout(oldLayout);
-	barrier.setNewLayout(newLayout);
-	barrier.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED);
-	barrier.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED);
-	barrier.setImage(image);
-	barrier.subresourceRange.setBaseMipLevel(0);
-	barrier.subresourceRange.setLevelCount(1);
-	barrier.subresourceRange.setBaseArrayLayer(0);
-	barrier.subresourceRange.setLayerCount(1);
 
-	if (newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
-	{
-		barrier.subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eDepth);
-
-		if (hasStencilComponent(format))
-		{
-			barrier.subresourceRange.aspectMask |= vk::ImageAspectFlagBits::eStencil;
-		}
-	}
-	else
-	{
-		barrier.subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eColor);
-	}
-	vk::PipelineStageFlags sourceStage;
-	vk::PipelineStageFlags destinationStage;
-
-	if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
-	{
-		//barrier.setSrcAccessMask(0);
-		barrier.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
-
-		sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
-		destinationStage = vk::PipelineStageFlagBits::eTransfer;
-	}
-	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
-	{
-		barrier.setSrcAccessMask(vk::AccessFlagBits::eTransferWrite);
-		barrier.setDstAccessMask(vk::AccessFlagBits::eShaderRead);
-
-		sourceStage = vk::PipelineStageFlagBits::eTransfer;
-		destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
-	}
-	else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
-	{
-		//barrier.setSrcAccessMask();
-		barrier.setDstAccessMask(vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite);
-
-		sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
-		destinationStage = vk::PipelineStageFlagBits::eEarlyFragmentTests;
-	}
-	else
-	{
-		ENGINE_ASSERT(false, "Cannot support this image transition");
-	}
-
-	commandBuffer.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags{}, nullptr, nullptr, barrier);
-
-	endSingleTimeCommand(commandBuffer);
-}
-
-vk::Format Application::findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
-{
-	for (const auto& format : candidates)
-	{
-		auto properties = physicalDevice.getFormatProperties(format);
-		if (tiling == vk::ImageTiling::eLinear && (properties.linearTilingFeatures & features) == features)
-		{
-			return format;
-		}
-		else if (tiling == vk::ImageTiling::eOptimal && (properties.optimalTilingFeatures & features) == features)
-		{
-			return format;
-		}
-
-		ENGINE_ASSERT(false, "Failed to find supported format");
-	}
-}
-
-vk::Format Application::findDepthFormat()
-{
-	return findSupportedFormat({ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint }, vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
-}
 
 bool Application::hasStencilComponent(vk::Format format) const
 {
 	return format == vk::Format::eD32SfloatS8Uint || format == vk::Format::eD24UnormS8Uint;
 }
 
-void Application::copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height)
-{
-	auto commandBuffer = beginSingleTimeCommand();
-
-	vk::BufferImageCopy region{};
-	region.setBufferOffset(0);
-	region.setBufferRowLength(0);
-	region.setBufferImageHeight(0);
-
-	region.imageSubresource.setAspectMask(vk::ImageAspectFlagBits::eColor);
-	region.imageSubresource.setMipLevel(0);
-	region.imageSubresource.setBaseArrayLayer(0);
-	region.imageSubresource.setLayerCount(1);
-
-	region.setImageOffset({ 0, 0, 0 });
-	region.setImageExtent({ width, height, 1 });
-
-	commandBuffer.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, region);
-	endSingleTimeCommand(commandBuffer);
-}
 
 vk::CommandBuffer Application::beginSingleTimeCommand()
 {
 	vk::CommandBufferAllocateInfo allocInfo{};
 	allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
-	allocInfo.setCommandPool(commandPool);
+	allocInfo.setCommandPool(state.commandPool);
 	allocInfo.setCommandBufferCount(1);
 
-	auto commandBuffers = device.allocateCommandBuffers(allocInfo);
+	auto commandBuffers = state.device.allocateCommandBuffers(allocInfo);
 	for (const auto& commandBuffer : commandBuffers)
 	{
 		ENGINE_ASSERT(commandBuffer != vk::CommandBuffer{}, "Failed to allocate command buffer");
@@ -348,10 +242,10 @@ void Application::endSingleTimeCommand(vk::CommandBuffer commandBuffer)
 	submitInfo.setCommandBufferCount(1);
 	submitInfo.setCommandBuffers(commandBuffer);
 
-	graphicsQueue.submit(submitInfo, vk::Fence{});
-	graphicsQueue.waitIdle();
+	state.graphicsQueue.submit(submitInfo, vk::Fence{});
+	state.graphicsQueue.waitIdle();
 
-	device.freeCommandBuffers(commandPool, commandBuffer);
+	state.device.freeCommandBuffers(state.commandPool, commandBuffer);
 }
 
 
@@ -390,37 +284,37 @@ void Application::createInstance()
 	}
 
 
-	instance = vk::createInstance(createInfo);
-	ENGINE_ASSERT(instance != vk::Instance{}, "Failed to create instance");
+	state.instance = vk::createInstance(createInfo);
+	ENGINE_ASSERT(state.instance != vk::Instance{}, "Failed to create instance");
 }
 
 void Application::createSurface()
 {
-	surface = window->createSurface(instance);
+	surface = window->createSurface(state.instance);
 }
 
 void Application::pickPhysicalDevice()
 {
-	auto devices = instance.enumeratePhysicalDevices();
+	auto devices = state.instance.enumeratePhysicalDevices();
 	ENGINE_ASSERT(!devices.empty(), "No supported devices found");
 
 	for (const auto& device : devices)
 	{
 		if (isDeviceSuitable(device))
 		{
-			physicalDevice = device;
+			state.physicalDevice = device;
 			break;
 		}
 	}
-	ENGINE_ASSERT(physicalDevice != vk::PhysicalDevice{}, "Failed to select a suitable device");
+	ENGINE_ASSERT(state.physicalDevice != vk::PhysicalDevice{}, "Failed to select a suitable device");
 
-	auto supported = checkDeviceExtensionSupport(physicalDevice);
+	auto supported = checkDeviceExtensionSupport(state.physicalDevice);
 	ENGINE_ASSERT(supported, "Device does not support required extensions");
 }
 
 void Application::createLogicalDevice()
 {
-	auto indices = findQueueFamiles(physicalDevice);
+	auto indices = findQueueFamiles(state.physicalDevice);
 
 	std::vector<vk::DeviceQueueCreateInfo> deviceQueueCreateInfos;
 	std::set<uint32_t> uniqueQueueFamiles = { indices.graphicsFamily.value(), indices.presentFamily.value() };
@@ -438,7 +332,7 @@ void Application::createLogicalDevice()
 		deviceQueueCreateInfos.push_back(deviceQueueCreateInfo);
 	}
 
-	auto physicalDeviceFeatures = physicalDevice.getFeatures();
+	auto physicalDeviceFeatures = state.physicalDevice.getFeatures();
 
 	vk::DeviceCreateInfo deviceCreateInfo{};
 	deviceCreateInfo.setQueueCreateInfos(deviceQueueCreateInfos);
@@ -457,12 +351,12 @@ void Application::createLogicalDevice()
 		deviceCreateInfo.setEnabledLayerCount(0);
 	}
 
-	device = physicalDevice.createDevice(deviceCreateInfo);
+	state.device = state.physicalDevice.createDevice(deviceCreateInfo);
 
-	ENGINE_ASSERT(device != vk::Device{}, "Failed to create logical device");
+	ENGINE_ASSERT(state.device != vk::Device{}, "Failed to create logical device");
 
-	graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
-	presentQueue = device.getQueue(indices.presentFamily.value(), 0);
+	state.graphicsQueue = state.device.getQueue(indices.graphicsFamily.value(), 0);
+	presentQueue = state.device.getQueue(indices.presentFamily.value(), 0);
 
 }
 
@@ -490,7 +384,7 @@ void Application::setupDebugMessenger()
 	createInfo.pfnUserCallback = debugCallback;
 
 
-	if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+	if (CreateDebugUtilsMessengerEXT(state.instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
 	{
 		ENGINE_ASSERT(false, "Failed to set up debug messenger");
 	}
@@ -523,7 +417,7 @@ void Application::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtil
 
 uint32_t Application::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
 {
-	auto memoryProperties = physicalDevice.getMemoryProperties();
+	auto memoryProperties = state.physicalDevice.getMemoryProperties();
 
 	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
 	{
@@ -544,21 +438,21 @@ void Application::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, 
 	bufferInfo.setUsage(usage);
 	bufferInfo.setSharingMode(vk::SharingMode::eExclusive);
 
-	buffer = device.createBuffer(bufferInfo);
+	buffer = state.device.createBuffer(bufferInfo);
 
 	ENGINE_ASSERT(buffer != vk::Buffer{}, "Failed to create vertex buffer");
 
-	auto memoryRequirements = device.getBufferMemoryRequirements(buffer);
+	auto memoryRequirements = state.device.getBufferMemoryRequirements(buffer);
 
 	vk::MemoryAllocateInfo allocInfo{};
 	allocInfo.setAllocationSize(memoryRequirements.size);
 	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
 
-	bufferMemory = device.allocateMemory(allocInfo);
+	bufferMemory = state.device.allocateMemory(allocInfo);
 
 	ENGINE_ASSERT(bufferMemory != vk::DeviceMemory{}, "Failed to allocate vertex memory");
 
-	device.bindBufferMemory(buffer, bufferMemory, 0);
+	state.device.bindBufferMemory(buffer, bufferMemory, 0);
 }
 
 void Application::copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
@@ -600,7 +494,7 @@ bool Application::checkValidationLayerSupport() const
 
 void Application::createSwapchain()
 {
-	auto swapChainSupportDetails = querySwapChainSupport(physicalDevice);
+	auto swapChainSupportDetails = querySwapChainSupport(state.physicalDevice);
 
 	auto surfaceFormat = chooseSwapSurfaceFormat(swapChainSupportDetails.formats);
 	auto presentMode = chooseSwapPresentMode(swapChainSupportDetails.presentModes);
@@ -622,7 +516,7 @@ void Application::createSwapchain()
 	createInfo.setImageArrayLayers(1);
 	createInfo.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment);
 
-	auto indices = findQueueFamiles(physicalDevice);
+	auto indices = findQueueFamiles(state.physicalDevice);
 
 	uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 
@@ -646,14 +540,13 @@ void Application::createSwapchain()
 	createInfo.setClipped(true);
 	//createInfo.setOldSwapchain();
 
-	swapchain = device.createSwapchainKHR(createInfo);
+	swapchain = state.device.createSwapchainKHR(createInfo);
 
 	ENGINE_ASSERT(swapchain != vk::SwapchainKHR{}, "Failed to create swap chain");
 
-	swapchainImages = device.getSwapchainImagesKHR(swapchain);
-
-	ENGINE_ASSERT(!swapchainImages.empty(), "Failed to retrieve swapchain images");
 	swapchainFormat = surfaceFormat.format;
+	swapchainImages = getSwapchainImages(swapchain);
+	ENGINE_ASSERT(!swapchainImages.empty(), "Failed to retrieve swapchain images");
 	swapchainExtent = extent;
 }
 
@@ -674,7 +567,7 @@ void Application::createRenderPass()
 	colourAttachmentRef.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
 	vk::AttachmentDescription depthAttachment{};
-	depthAttachment.setFormat(findDepthFormat());
+	depthAttachment.setFormat(state.findDepthFormat());
 	depthAttachment.setSamples(vk::SampleCountFlagBits::e1);
 	depthAttachment.setLoadOp(vk::AttachmentLoadOp::eClear);
 	depthAttachment.setStoreOp(vk::AttachmentStoreOp::eDontCare);
@@ -706,7 +599,7 @@ void Application::createRenderPass()
 	renderPassInfo.setSubpasses(subpass);
 	renderPassInfo.setDependencies(dependency);
 
-	renderPass = device.createRenderPass(renderPassInfo);
+	renderPass = state.device.createRenderPass(renderPassInfo);
 
 	ENGINE_ASSERT(renderPass != vk::RenderPass{}, "Failed to create render pass");
 }
@@ -731,7 +624,7 @@ void Application::createDescriptorSetLayout()
 	vk::DescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.setBindings(bindings);
 
-	descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+	descriptorSetLayout = state.device.createDescriptorSetLayout(layoutInfo);
 	ENGINE_ASSERT(descriptorSetLayout != vk::DescriptorSetLayout{}, "Failed to create descriptor set");
 }
 
@@ -845,7 +738,7 @@ void Application::createGraphicsPipeline()
 	pipelineLayoutInfo.setPPushConstantRanges(nullptr);
 	pipelineLayoutInfo.setSetLayouts(descriptorSetLayout);
 
-	pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
+	pipelineLayout = state.device.createPipelineLayout(pipelineLayoutInfo);
 	ENGINE_ASSERT(pipelineLayout != vk::PipelineLayout{}, "FAiled to create pipeline layout");
 
 	vk::GraphicsPipelineCreateInfo pipelineInfo{};
@@ -868,18 +761,18 @@ void Application::createGraphicsPipeline()
 
 	vk::PipelineCache cache{};
 
-	auto success = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, reinterpret_cast<const VkGraphicsPipelineCreateInfo*>(&pipelineInfo), nullptr, reinterpret_cast<VkPipeline*>(&graphicsPipeline));
+	auto success = vkCreateGraphicsPipelines(state.device, VK_NULL_HANDLE, 1, reinterpret_cast<const VkGraphicsPipelineCreateInfo*>(&pipelineInfo), nullptr, reinterpret_cast<VkPipeline*>(&graphicsPipeline));
 	ENGINE_ASSERT(success == VK_SUCCESS, "Failed to create graphics pipeline");
 }
 
 void Application::createFramebuffers()
 {
 	swapChainFramebuffers.resize(0);
-	for (const auto& swapchainImageView : swapchainImageViews)
+	for (const auto& image : swapchainImages)
 	{
 		const auto attachments =
 		{
-			swapchainImageView,
+			image.view,
 			depthImage.view
 		};
 
@@ -890,7 +783,7 @@ void Application::createFramebuffers()
 		framebufferInfo.setHeight(swapchainExtent.height);
 		framebufferInfo.setLayers(1);
 
-		auto framebuffer = device.createFramebuffer(framebufferInfo);
+		auto framebuffer = state.device.createFramebuffer(framebufferInfo);
 		ENGINE_ASSERT(framebuffer != vk::Framebuffer{}, "Failed to create framebuffer");
 		swapChainFramebuffers.emplace_back(framebuffer);
 	}
@@ -899,19 +792,19 @@ void Application::createFramebuffers()
 
 void Application::createCommandPool()
 {
-	auto queuFamilyIndices = findQueueFamiles(physicalDevice);
+	auto queuFamilyIndices = findQueueFamiles(state.physicalDevice);
 
 	vk::CommandPoolCreateInfo poolInfo{};
 	poolInfo.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 	poolInfo.setQueueFamilyIndex(queuFamilyIndices.graphicsFamily.value());
 
-	commandPool = device.createCommandPool(poolInfo);
-	ENGINE_ASSERT(commandPool != vk::CommandPool{}, "FAiled to create command pool");
+	state.commandPool = state.device.createCommandPool(poolInfo);
+	ENGINE_ASSERT(state.commandPool != vk::CommandPool{}, "FAiled to create command pool");
 }
 
 void Application::createDepthResources()
 {
-	auto format = findDepthFormat();
+	auto format = state.findDepthFormat();
 	ImageProperties properties
 	{
 		.format = format,
@@ -920,9 +813,8 @@ void Application::createDepthResources()
 		.memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
 		.aspect = vk::ImageAspectFlagBits::eDepth
 	};
-	depthImage = Image(physicalDevice, device, swapchainExtent.width, swapchainExtent.height, properties);
-
-	transitionImageLayout(depthImage.image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+	depthImage = DepthImage(state, swapchainExtent.width, swapchainExtent.height);
+	depthImage.transitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 }
 
 void Application::createTextureImage()
@@ -951,34 +843,28 @@ void Application::createTextureImage()
 
 	createBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, stagingBuffer, stagingBufferMemory);
 
-	auto data = device.mapMemory(stagingBufferMemory, 0, imageSize);
+	auto data = state.device.mapMemory(stagingBufferMemory, 0, imageSize);
 	std::memcpy(data, pixels, imageSize);
-	device.unmapMemory(stagingBufferMemory);
+	state.device.unmapMemory(stagingBufferMemory);
 
 	stbi_image_free(pixels);
 
-	auto format = vk::Format::eB8G8R8A8Srgb;
 	ImageProperties properties
 	{
-		.format = format,
+		.format = vk::Format::eB8G8R8A8Srgb,
 		.tiling = vk::ImageTiling::eOptimal,
 		.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 		.memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
 		.aspect = vk::ImageAspectFlagBits::eColor
 	};
 
-	textureImage = Image(physicalDevice, device, width, height, properties);
-	transitionImageLayout(textureImage.image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-	copyBufferToImage(stagingBuffer, textureImage.image, width, height);
-	transitionImageLayout(textureImage.image, format, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+	textureImage = Image(state, width, height, properties);
+	textureImage.transitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	textureImage.copyFromBuffer(stagingBuffer);
+	textureImage.transitionLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
-	device.destroyBuffer(stagingBuffer);
-	device.freeMemory(stagingBufferMemory);
-}
-
-void Application::createTextureImageView()
-{
-	//textureImageView = createImageView(textureImage, vk::Format::eB8G8R8A8Srgb, vk::ImageAspectFlagBits::eColor);
+	state.device.destroyBuffer(stagingBuffer);
+	state.device.freeMemory(stagingBufferMemory);
 }
 
 void Application::createTextureSampler()
@@ -991,7 +877,7 @@ void Application::createTextureSampler()
 	samplerInfo.setAddressModeW(vk::SamplerAddressMode::eRepeat);
 	samplerInfo.setAnisotropyEnable(true);
 
-	auto properties = physicalDevice.getProperties();
+	auto properties = state.physicalDevice.getProperties();
 	samplerInfo.setMaxAnisotropy(properties.limits.maxSamplerAnisotropy);
 	
 	samplerInfo.setBorderColor(vk::BorderColor::eIntOpaqueBlack);
@@ -1003,7 +889,7 @@ void Application::createTextureSampler()
 	samplerInfo.setMinLod(0.f);
 	samplerInfo.setMaxLod(0.f);
 
-	textureSampler = device.createSampler(samplerInfo);
+	textureSampler = state.device.createSampler(samplerInfo);
 	ENGINE_ASSERT(textureSampler != vk::Sampler{}, "Failed to create sampler");
 }
 
@@ -1015,18 +901,18 @@ void Application::createVertexBuffer()
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, stagingBuffer, stagingBufferMemory);
 
-	auto data = device.mapMemory(stagingBufferMemory, 0, bufferSize);
+	auto data = state.device.mapMemory(stagingBufferMemory, 0, bufferSize);
 
 	std::memcpy(data, vertices.data(), bufferSize);
 
-	device.unmapMemory(stagingBufferMemory);
+	state.device.unmapMemory(stagingBufferMemory);
 
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, vertexBuffer, vertexBufferMemory);
 
 	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
 
-	device.destroyBuffer(stagingBuffer);
-	device.freeMemory(stagingBufferMemory);
+	state.device.destroyBuffer(stagingBuffer);
+	state.device.freeMemory(stagingBufferMemory);
 }
 
 void Application::createIndexBuffer()
@@ -1037,19 +923,19 @@ void Application::createIndexBuffer()
 	vk::DeviceMemory stagingBufferMemory;
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, stagingBuffer, stagingBufferMemory);
 
-	auto data = device.mapMemory(stagingBufferMemory, 0, bufferSize);
+	auto data = state.device.mapMemory(stagingBufferMemory, 0, bufferSize);
 
 	std::memcpy(data, indices.data(), bufferSize);
 
-	device.unmapMemory(stagingBufferMemory);
+	state.device.unmapMemory(stagingBufferMemory);
 
 
 	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, indexBuffer, indexBufferMemory);
 
 	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
-	device.destroyBuffer(stagingBuffer);
-	device.freeMemory(stagingBufferMemory);
+	state.device.destroyBuffer(stagingBuffer);
+	state.device.freeMemory(stagingBufferMemory);
 }
 
 void Application::createUniformBuffers()
@@ -1082,7 +968,7 @@ void Application::createDescriptorPool()
 	poolInfo.setPoolSizes(pools);
 	poolInfo.setMaxSets(MaxFramesInFlight);
 
-	descriptorPool = device.createDescriptorPool(poolInfo);
+	descriptorPool = state.device.createDescriptorPool(poolInfo);
 	ENGINE_ASSERT(descriptorPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
 }
 
@@ -1095,7 +981,7 @@ void Application::createDescriptorSets()
 	allocInfo.setDescriptorSetCount(MaxFramesInFlight);
 	allocInfo.setSetLayouts(layouts);
 
-	descriptorSets = device.allocateDescriptorSets(allocInfo);
+	descriptorSets = state.device.allocateDescriptorSets(allocInfo);
 	for (const auto& descriptorSet : descriptorSets)
 	{
 		ENGINE_ASSERT(descriptorSet != vk::DescriptorSet{}, "Failed to create descriptor set");
@@ -1134,7 +1020,7 @@ void Application::createDescriptorSets()
 		//imageDescriptorWrite.setDescriptorCount(1);
 		
 		auto descriptorSets = { descriptorWrite, imageDescriptorWrite };
-		device.updateDescriptorSets(descriptorSets, nullptr);
+		state.device.updateDescriptorSets(descriptorSets, nullptr);
 	}
 }
 
@@ -1143,11 +1029,11 @@ void Application::createCommandBuffers()
 	commandBuffers.resize(MaxFramesInFlight);
 
 	vk::CommandBufferAllocateInfo allocInfo{};
-	allocInfo.setCommandPool(commandPool);
+	allocInfo.setCommandPool(state.commandPool);
 	allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
 	allocInfo.setCommandBufferCount(static_cast<uint32_t>(commandBuffers.size()));
 
-	commandBuffers = device.allocateCommandBuffers(allocInfo);
+	commandBuffers = state.device.allocateCommandBuffers(allocInfo);
 
 	for (const auto& commandBuffer : commandBuffers)
 	{
@@ -1167,13 +1053,13 @@ void Application::createSyncObjects()
 		vk::FenceCreateInfo fenceInfo{};
 		fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
-		imageAvailableSemaphores[i] = device.createSemaphore(semaphoreInfo);
+		imageAvailableSemaphores[i] = state.device.createSemaphore(semaphoreInfo);
 		ENGINE_ASSERT(imageAvailableSemaphores[i] != vk::Semaphore{}, "Failed to create semaphore");
 
-		renderFinishedSemaphores[i] = device.createSemaphore(semaphoreInfo);
+		renderFinishedSemaphores[i] = state.device.createSemaphore(semaphoreInfo);
 		ENGINE_ASSERT(renderFinishedSemaphores[i] != vk::Semaphore{}, "Failed to create semaphore");
 
-		inFlightFences[i] = device.createFence(fenceInfo);
+		inFlightFences[i] = state.device.createFence(fenceInfo);
 		ENGINE_ASSERT(inFlightFences[i] != vk::Fence{}, "Failed to create semaphore");
 	}
 }
@@ -1192,11 +1078,11 @@ void Application::updateUniformBuffer(uint32_t currentImage)
 	ubo.proj = glm::perspective(glm::radians(45.f), swapchainExtent.width / (float)swapchainExtent.height, 0.1f, 10.f);
 	ubo.proj[1][1] *= -1;
 
-	auto data = device.mapMemory(uboBuffersMemory[currentImage], 0, sizeof(ubo));
+	auto data = state.device.mapMemory(uboBuffersMemory[currentImage], 0, sizeof(ubo));
 
 	std::memcpy(data, &ubo, sizeof(ubo));
 
-	device.unmapMemory(uboBuffersMemory[currentImage]);
+	state.device.unmapMemory(uboBuffersMemory[currentImage]);
 }
 
 void Application::recreateSwapChain()
@@ -1208,7 +1094,7 @@ void Application::recreateSwapChain()
 		std::tie(width, height) = window->getFramebufferSize();
 		window->waitEvents();
 	}
-	device.waitIdle();
+	state.device.waitIdle();
 
 	cleanupSwapchain();
 
@@ -1270,10 +1156,10 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, u
 
 void Application::drawFrame() 
 {
-	device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
+	state.device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
 
 	uint32_t imageIndex = 0;
-	auto result = device.acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], nullptr, &imageIndex);
+	auto result = state.device.acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], nullptr, &imageIndex);
 
 	if (result == vk::Result::eErrorOutOfDateKHR)
 	{
@@ -1285,7 +1171,7 @@ void Application::drawFrame()
 		ENGINE_ASSERT(false, "Failed to acquire next image");
 	}
 
-	device.resetFences(inFlightFences[currentFrame]);
+	state.device.resetFences(inFlightFences[currentFrame]);
 
 	updateUniformBuffer(currentFrame);
 
@@ -1307,7 +1193,7 @@ void Application::drawFrame()
 	//submitInfo.setSignalSemaphoreCount(1);
 	submitInfo.setSignalSemaphores(renderFinishedSemaphores[currentFrame]);
 
-	graphicsQueue.submit(submitInfo, inFlightFences[currentFrame]);
+	state.graphicsQueue.submit(submitInfo, inFlightFences[currentFrame]);
 
 	vk::PresentInfoKHR presentInfo{}; 
 	//presentInfo.setWaitSemaphoreCount(1);
@@ -1340,7 +1226,7 @@ vk::ShaderModule Application::createShaderModule(const std::vector<char>& code)
 	createInfo.setCodeSize(code.size());
 	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
-	auto module = device.createShaderModule(createInfo);
+	auto module = state.device.createShaderModule(createInfo);
 	ENGINE_ASSERT(module != vk::ShaderModule{}, "Failed to create shader module");
 
 	return module;
@@ -1378,65 +1264,75 @@ std::vector<char> Application::readShader(const std::filesystem::path& filePath)
 	return buffer;
 }
 
+std::vector<Image> Application::getSwapchainImages(vk::SwapchainKHR swapchain)
+{
+	std::vector<Image> swapchainImages;
+	auto images = state.device.getSwapchainImagesKHR(swapchain);
+
+	for (const auto& image : images)
+	{
+		swapchainImages.emplace_back(Image{ state , image, swapchainFormat });
+	}
+
+	return swapchainImages;
+}
+
 void Application::cleanup()
 {
 
 	cleanupSwapchain();
-	//device.destroyImage(textureImage);
-	//device.freeMemory(textureImageMemory);
-	//device.destroyImageView(textureImageView);
-	device.destroySampler(textureSampler);
+	state.device.destroySampler(textureSampler);
 
 	textureImage.destroy();
 	depthImage.destroy();
 
 	for (int i = 0; i < MaxFramesInFlight; i++)
 	{
-		device.destroyFence(inFlightFences[i]);
-		device.destroySemaphore(renderFinishedSemaphores[i]);
-		device.destroySemaphore(imageAvailableSemaphores[i]);
+		state.device.destroyFence(inFlightFences[i]);
+		state.device.destroySemaphore(renderFinishedSemaphores[i]);
+		state.device.destroySemaphore(imageAvailableSemaphores[i]);
 	}
-	device.destroyDescriptorPool(descriptorPool);
-	device.destroyCommandPool(commandPool);
+	state.device.destroyDescriptorPool(descriptorPool);
+	state.device.destroyCommandPool(state.commandPool);
 	
-	device.destroyBuffer(vertexBuffer);
-	device.freeMemory(vertexBufferMemory);
-	device.destroyBuffer(indexBuffer);
-	device.freeMemory(indexBufferMemory);
+	state.device.destroyBuffer(vertexBuffer);
+	state.device.freeMemory(vertexBufferMemory);
+	state.device.destroyBuffer(indexBuffer);
+	state.device.freeMemory(indexBufferMemory);
 	for (int i = 0; i < MaxFramesInFlight; i++)
 	{
-		device.destroyBuffer(uboBuffers[i]);
-		device.freeMemory(uboBuffersMemory[i]);
+		state.device.destroyBuffer(uboBuffers[i]);
+		state.device.freeMemory(uboBuffersMemory[i]);
 	}
 
-	device.destroyDescriptorSetLayout(descriptorSetLayout);
-	device.destroyPipeline(graphicsPipeline);
-	device.destroyPipelineLayout(pipelineLayout);
-	device.destroyRenderPass(renderPass);
-	device.destroyShaderModule(fragShaderModule);
-	device.destroyShaderModule(vertShaderModule);
+	state.device.destroyDescriptorSetLayout(descriptorSetLayout);
+	state.device.destroyPipeline(graphicsPipeline);
+	state.device.destroyPipelineLayout(pipelineLayout);
+	state.device.destroyRenderPass(renderPass);
+	state.device.destroyShaderModule(fragShaderModule);
+	state.device.destroyShaderModule(vertShaderModule);
 
-	device.destroy();
-	instance.destroySurfaceKHR(surface);
+	state.device.destroy();
+	state.instance.destroySurfaceKHR(surface);
 	if (enableValidationLayers)
 	{
-		DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+		DestroyDebugUtilsMessengerEXT(state.instance, debugMessenger, nullptr);
 	}
-	instance.destroy();
+	state.instance.destroy();
 }
 
 void Application::cleanupSwapchain()
 {
 	for (auto framebuffer : swapChainFramebuffers)
 	{
-		device.destroyFramebuffer(framebuffer);
+		state.device.destroyFramebuffer(framebuffer);
 	}
 
-	for (auto& imageView : swapchainImageViews)
+	for (auto& image : swapchainImages)
 	{
-		device.destroyImageView(imageView);
+		image.destroyView();
 	}
 
-	device.destroySwapchainKHR(swapchain);
+	state.device.destroySwapchainKHR(swapchain);
 }
 
