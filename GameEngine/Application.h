@@ -3,6 +3,7 @@
 #include "RendererState.h"
 
 #include "Image.h"
+#include "Buffer.h"
 
 #include "Platform/Window.h"
 #include <optional>
@@ -169,9 +170,7 @@ private:
 	bool checkValidationLayerSupport() const;
 	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* debugMessenger);
 	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator);
-	uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const;
 
-	void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
 	void copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
 	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
 	std::vector<Image> getSwapchainImages(vk::SwapchainKHR swapchain);
@@ -234,12 +233,9 @@ private:
 	vk::Pipeline graphicsPipeline;
 	std::vector<vk::Framebuffer> swapChainFramebuffers;
 	
-	vk::Buffer vertexBuffer;
-	vk::DeviceMemory vertexBufferMemory;
-	vk::Buffer indexBuffer;
-	vk::DeviceMemory indexBufferMemory;
-	std::vector<vk::Buffer> uboBuffers;
-	std::vector<vk::DeviceMemory> uboBuffersMemory;
+	Buffer vertexBuffer;
+	Buffer indexBuffer;
+	std::vector<Buffer> uboBuffers;
 
 	Image textureImage{};
 	vk::Sampler textureSampler;

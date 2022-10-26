@@ -91,7 +91,6 @@ void Application::mainLoop()
 
 bool Application::isDeviceSuitable(const vk::PhysicalDevice& device) const
 {
-
 	auto indices = findQueueFamiles(device);
 
 	auto properties = device.getProperties();
@@ -413,46 +412,6 @@ void Application::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtil
 	{
 		func(instance, debugMessenger, allocator);
 	}
-}
-
-uint32_t Application::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
-{
-	auto memoryProperties = state.physicalDevice.getMemoryProperties();
-
-	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
-	{
-		if (typeFilter & (1 << i) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
-		{
-			return i;
-		}
-	}
-
-	ENGINE_ASSERT(false, "Failed to find suitable memory type");
-	return -1;
-}
-
-void Application::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory)
-{
-	vk::BufferCreateInfo bufferInfo{};
-	bufferInfo.setSize(size);
-	bufferInfo.setUsage(usage);
-	bufferInfo.setSharingMode(vk::SharingMode::eExclusive);
-
-	buffer = state.device.createBuffer(bufferInfo);
-
-	ENGINE_ASSERT(buffer != vk::Buffer{}, "Failed to create vertex buffer");
-
-	auto memoryRequirements = state.device.getBufferMemoryRequirements(buffer);
-
-	vk::MemoryAllocateInfo allocInfo{};
-	allocInfo.setAllocationSize(memoryRequirements.size);
-	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
-
-	bufferMemory = state.device.allocateMemory(allocInfo);
-
-	ENGINE_ASSERT(bufferMemory != vk::DeviceMemory{}, "Failed to allocate vertex memory");
-
-	state.device.bindBufferMemory(buffer, bufferMemory, 0);
 }
 
 void Application::copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
@@ -838,18 +797,21 @@ void Application::createTextureImage()
 
 	vk::DeviceSize imageSize = width * height * 4;
 
-	vk::Buffer stagingBuffer;
-	vk::DeviceMemory stagingBufferMemory;
+	BufferProperties properties =
+	{
+		.size = imageSize,
+		.usage = vk::BufferUsageFlagBits::eTransferSrc,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible,
+	};
 
-	createBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, stagingBuffer, stagingBufferMemory);
-
-	auto data = state.device.mapMemory(stagingBufferMemory, 0, imageSize);
+	auto stagingBuffer = Buffer(state, properties);
+	auto data = state.device.mapMemory(stagingBuffer.memory, 0, imageSize);
 	std::memcpy(data, pixels, imageSize);
-	state.device.unmapMemory(stagingBufferMemory);
+	state.device.unmapMemory(stagingBuffer.memory);
 
 	stbi_image_free(pixels);
 
-	ImageProperties properties
+	ImageProperties imageProperties
 	{
 		.format = vk::Format::eB8G8R8A8Srgb,
 		.tiling = vk::ImageTiling::eOptimal,
@@ -858,13 +820,13 @@ void Application::createTextureImage()
 		.aspect = vk::ImageAspectFlagBits::eColor
 	};
 
-	textureImage = Image(state, width, height, properties);
+	textureImage = Image(state, width, height, imageProperties);
 	textureImage.transitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-	textureImage.copyFromBuffer(stagingBuffer);
+	textureImage.copyFromBuffer(stagingBuffer.buffer);
 	textureImage.transitionLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
-	state.device.destroyBuffer(stagingBuffer);
-	state.device.freeMemory(stagingBufferMemory);
+	state.device.destroyBuffer(stagingBuffer.buffer);
+	state.device.freeMemory(stagingBuffer.memory);
 }
 
 void Application::createTextureSampler()
@@ -897,45 +859,66 @@ void Application::createVertexBuffer()
 {
 	vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-	vk::Buffer stagingBuffer;
-	vk::DeviceMemory stagingBufferMemory;
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, stagingBuffer, stagingBufferMemory);
+	BufferProperties properties =
+	{
+		.size = bufferSize,
+		.usage = vk::BufferUsageFlagBits::eTransferSrc,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+	};
 
-	auto data = state.device.mapMemory(stagingBufferMemory, 0, bufferSize);
+	auto stagingBuffer = Buffer(state, properties);
+	auto data = state.device.mapMemory(stagingBuffer.memory, 0, bufferSize);
 
 	std::memcpy(data, vertices.data(), bufferSize);
 
-	state.device.unmapMemory(stagingBufferMemory);
+	state.device.unmapMemory(stagingBuffer.memory);
 
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, vertexBuffer, vertexBufferMemory);
+	BufferProperties vertexBufferProperties =
+	{
+		.size = bufferSize,
+		.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+	};
 
-	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+	vertexBuffer = Buffer(state, vertexBufferProperties);
 
-	state.device.destroyBuffer(stagingBuffer);
-	state.device.freeMemory(stagingBufferMemory);
+	copyBuffer(stagingBuffer.buffer, vertexBuffer.buffer, bufferSize);
+
+	state.device.destroyBuffer(stagingBuffer.buffer);
+	state.device.freeMemory(stagingBuffer.memory);
 }
 
 void Application::createIndexBuffer()
 {
 	vk::DeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
-	vk::Buffer stagingBuffer;
-	vk::DeviceMemory stagingBufferMemory;
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, stagingBuffer, stagingBufferMemory);
+	BufferProperties properties =
+	{
+		.size = bufferSize,
+		.usage = vk::BufferUsageFlagBits::eTransferSrc,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+	};
+	auto stagingBuffer = Buffer(state, properties);
 
-	auto data = state.device.mapMemory(stagingBufferMemory, 0, bufferSize);
+	auto data = state.device.mapMemory(stagingBuffer.memory, 0, bufferSize);
 
 	std::memcpy(data, indices.data(), bufferSize);
 
-	state.device.unmapMemory(stagingBufferMemory);
+	state.device.unmapMemory(stagingBuffer.memory);
 
 
-	createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, indexBuffer, indexBufferMemory);
+	BufferProperties indexBufferProperties =
+	{
+		.size = bufferSize,
+		.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+	};
+	indexBuffer = Buffer(state, indexBufferProperties);
 
-	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+	copyBuffer(stagingBuffer.buffer, indexBuffer.buffer, bufferSize);
 
-	state.device.destroyBuffer(stagingBuffer);
-	state.device.freeMemory(stagingBufferMemory);
+	state.device.destroyBuffer(stagingBuffer.buffer);
+	state.device.freeMemory(stagingBuffer.memory);
 }
 
 void Application::createUniformBuffers()
@@ -943,11 +926,16 @@ void Application::createUniformBuffers()
 	vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
 
 	uboBuffers.resize(MaxFramesInFlight);
-	uboBuffersMemory.resize(MaxFramesInFlight);
+	BufferProperties properties =
+	{
+		.size = bufferSize,
+		.usage = vk::BufferUsageFlagBits::eUniformBuffer,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+	};
 
 	for (auto i = 0; i < MaxFramesInFlight; i++)
 	{
-		createBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible, uboBuffers[i], uboBuffersMemory[i]);
+		uboBuffers[i] = Buffer(state, properties);
 	}
 }
 
@@ -990,7 +978,7 @@ void Application::createDescriptorSets()
 	for (auto i = 0; i < MaxFramesInFlight; i++)
 	{
 		vk::DescriptorBufferInfo bufferInfo{};
-		bufferInfo.setBuffer(uboBuffers[i]);
+		bufferInfo.setBuffer(uboBuffers[i].buffer);
 		bufferInfo.setOffset(0);
 		bufferInfo.setRange(sizeof(UniformBufferObject));
 
@@ -1078,11 +1066,11 @@ void Application::updateUniformBuffer(uint32_t currentImage)
 	ubo.proj = glm::perspective(glm::radians(45.f), swapchainExtent.width / (float)swapchainExtent.height, 0.1f, 10.f);
 	ubo.proj[1][1] *= -1;
 
-	auto data = state.device.mapMemory(uboBuffersMemory[currentImage], 0, sizeof(ubo));
+	auto data = state.device.mapMemory(uboBuffers[currentImage].memory, 0, sizeof(ubo));
 
 	std::memcpy(data, &ubo, sizeof(ubo));
 
-	state.device.unmapMemory(uboBuffersMemory[currentImage]);
+	state.device.unmapMemory(uboBuffers[currentImage].memory);
 }
 
 void Application::recreateSwapChain()
@@ -1127,8 +1115,8 @@ void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, u
 	commandBuffers.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
 
 	vk::DeviceSize offsets = { 0 };
-	commandBuffers.bindVertexBuffers(0, vertexBuffer, offsets);
-	commandBuffers.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+	commandBuffers.bindVertexBuffers(0, vertexBuffer.buffer, offsets);
+	commandBuffers.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
 	commandBuffers.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
 
 	vk::Viewport viewport{};
@@ -1295,14 +1283,11 @@ void Application::cleanup()
 	state.device.destroyDescriptorPool(descriptorPool);
 	state.device.destroyCommandPool(state.commandPool);
 	
-	state.device.destroyBuffer(vertexBuffer);
-	state.device.freeMemory(vertexBufferMemory);
-	state.device.destroyBuffer(indexBuffer);
-	state.device.freeMemory(indexBufferMemory);
+	vertexBuffer.destroy();
+	indexBuffer.destroy();
 	for (int i = 0; i < MaxFramesInFlight; i++)
 	{
-		state.device.destroyBuffer(uboBuffers[i]);
-		state.device.freeMemory(uboBuffersMemory[i]);
+		uboBuffers[i].destroy();
 	}
 
 	state.device.destroyDescriptorSetLayout(descriptorSetLayout);
