@@ -1,6 +1,8 @@
 #pragma once
 #include "EngineCore.h"
 
+#include "Image.h"
+
 #include "Platform/Window.h"
 #include <optional>
 #include <filesystem>
@@ -251,14 +253,11 @@ private:
 	std::vector<vk::Buffer> uboBuffers;
 	std::vector<vk::DeviceMemory> uboBuffersMemory;
 
-	vk::Image textureImage;
-	vk::DeviceMemory textureImageMemory;
-	vk::ImageView textureImageView;
+	Image textureImage{};
 	vk::Sampler textureSampler;
 
-	vk::Image depthImage;
-	vk::DeviceMemory depthImageMemory;
-	vk::ImageView depthImageView;
+	Image depthImage{};
+
 
 	std::vector<vk::CommandBuffer> commandBuffers;
 

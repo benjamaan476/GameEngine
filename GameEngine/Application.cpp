@@ -960,7 +960,7 @@ void Application::createFramebuffers()
 		vk::ImageView attachments[] =
 		{
 			swapchainImageView,
-			depthImageView
+			depthImage.view
 		};
 
 		vk::FramebufferCreateInfo framebufferInfo{};
@@ -998,10 +998,9 @@ void Application::createCommandPool()
 void Application::createDepthResources()
 {
 	auto format = findDepthFormat();
-	createImage(swapchainExtent.width, swapchainExtent.height, format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, depthImage, depthImageMemory);
-	depthImageView = createImageView(depthImage, format, vk::ImageAspectFlagBits::eDepth);
+	depthImage = Image(physicalDevice, device, swapchainExtent.width, swapchainExtent.height, format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eDepth);
 
-	transitionImageLayout(depthImage, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+	transitionImageLayout(depthImage.image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 }
 
 void Application::createTextureImage()
@@ -1040,10 +1039,10 @@ void Application::createTextureImage()
 	stbi_image_free(pixels);
 
 	auto format = vk::Format::eB8G8R8A8Srgb;
-	createImage(width, height, format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, textureImage, textureImageMemory);
-	transitionImageLayout(textureImage, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-	copyBufferToImage(stagingBuffer, textureImage, width, height);
-	transitionImageLayout(textureImage, format, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+	textureImage = Image(physicalDevice, device, width, height, format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eColor);
+	transitionImageLayout(textureImage.image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	copyBufferToImage(stagingBuffer, textureImage.image, width, height);
+	transitionImageLayout(textureImage.image, format, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
 	device.destroyBuffer(stagingBuffer);
 	device.freeMemory(stagingBufferMemory);
@@ -1051,7 +1050,7 @@ void Application::createTextureImage()
 
 void Application::createTextureImageView()
 {
-	textureImageView = createImageView(textureImage, vk::Format::eB8G8R8A8Srgb, vk::ImageAspectFlagBits::eColor);
+	//textureImageView = createImageView(textureImage, vk::Format::eB8G8R8A8Srgb, vk::ImageAspectFlagBits::eColor);
 }
 
 void Application::createTextureSampler()
@@ -1213,7 +1212,7 @@ void Application::createDescriptorSets()
 
 		vk::DescriptorImageInfo imageInfo{};
 		imageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
-		imageInfo.setImageView(textureImageView);
+		imageInfo.setImageView(textureImage.view);
 		imageInfo.setSampler(textureSampler);
 
 		vk::WriteDescriptorSet descriptorWrite{};
@@ -1504,14 +1503,13 @@ void Application::cleanup()
 {
 
 	cleanupSwapchain();
-	device.destroyImage(textureImage);
-	device.freeMemory(textureImageMemory);
+	//device.destroyImage(textureImage);
+	//device.freeMemory(textureImageMemory);
+	//device.destroyImageView(textureImageView);
 	device.destroySampler(textureSampler);
-	device.destroyImageView(textureImageView);
 
-	device.destroyImage(depthImage);
-	device.freeMemory(depthImageMemory);
-	device.destroyImageView(depthImageView);
+	textureImage.destroy();
+	depthImage.destroy();
 
 	for (int i = 0; i < MaxFramesInFlight; i++)
 	{
