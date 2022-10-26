@@ -1,4 +1,5 @@
 #include "Image.h"
+#include "Image.h"
 
 uint32_t Image::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
 {
@@ -16,7 +17,7 @@ uint32_t Image::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags prop
 	return -1;
 }
 
-void Image::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties)
+void Image::createImage()
 {
 	vk::ImageCreateInfo imageInfo{};
 	imageInfo.setImageType(vk::ImageType::e2D);
@@ -25,47 +26,42 @@ void Image::createImage(uint32_t width, uint32_t height, vk::Format format, vk::
 	imageInfo.extent.setDepth(1);
 	imageInfo.setMipLevels(1);
 	imageInfo.setArrayLayers(1);
-	imageInfo.setFormat(format);
-	imageInfo.setTiling(tiling);
+	imageInfo.setFormat(properties.format);
+	imageInfo.setTiling(properties.tiling);
 	imageInfo.setInitialLayout(vk::ImageLayout::eUndefined);
-	imageInfo.setUsage(usage);
+	imageInfo.setUsage(properties.usage);
 	imageInfo.setSharingMode(vk::SharingMode::eExclusive);
 	imageInfo.setSamples(vk::SampleCountFlagBits::e1);
 
 	image = device.createImage(imageInfo);
-	if (image == vk::Image{})
-	{
-		ENGINE_ASSERT(false, "Failed to create image");
-	}
+	ENGINE_ASSERT(image != vk::Image{}, "Failed to create image");
+}
+void Image::createMemory()
+{
 	auto memoryRequirements = device.getImageMemoryRequirements(image);
 
 	vk::MemoryAllocateInfo allocInfo{};
 	allocInfo.setAllocationSize(memoryRequirements.size);
-	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, properties));
+	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, properties.memoryProperties));
 
 	memory = device.allocateMemory(allocInfo);
-	if (memory == vk::DeviceMemory{})
-	{
-		ENGINE_ASSERT(false, "Failed to allocate image memory");
-	}
+	ENGINE_ASSERT(memory != vk::DeviceMemory{}, "Failed to allocate image memory");
+
 	device.bindImageMemory(image, memory, 0);
 
 }
-void Image::createImageView(vk::Format format, vk::ImageAspectFlags imageAspects)
+void Image::createImageView()
 {
 	vk::ImageViewCreateInfo viewInfo{};
 	viewInfo.setImage(image);
 	viewInfo.setViewType(vk::ImageViewType::e2D);
-	viewInfo.setFormat(format);
-	viewInfo.subresourceRange.setAspectMask(imageAspects);
+	viewInfo.setFormat(properties.format);
+	viewInfo.subresourceRange.setAspectMask(properties.aspect);
 	viewInfo.subresourceRange.setBaseMipLevel(0);
 	viewInfo.subresourceRange.setLevelCount(1);
 	viewInfo.subresourceRange.setBaseArrayLayer(0);
 	viewInfo.subresourceRange.setLayerCount(1);
 	view = device.createImageView(viewInfo);
 
-	if (view == vk::ImageView{})
-	{
-		ENGINE_ASSERT(false, "FAiled to create image view");
-	}
+	ENGINE_ASSERT(view != vk::ImageView{}, "Failed to create image view");
 }

@@ -13,7 +13,7 @@
 Application::Application(std::string_view name, uint32_t width, uint32_t height)
 {
 	Log::Init();
-	LOG_WARN("Initialized");
+	LOG_INFO("Initialized");
 	initWindow(name, width, height);
 }
 
@@ -61,7 +61,6 @@ void Application::initVulkan()
 	pickPhysicalDevice();
 	createLogicalDevice();
 	createSwapchain();
-	createImageViews();
 	createRenderPass();
 	createDescriptorSetLayout();
 	createGraphicsPipeline();
@@ -102,7 +101,7 @@ bool Application::isDeviceSuitable(const vk::PhysicalDevice& device) const
 	auto swapChainSupport = querySwapChainSupport(device);
 	auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-	return properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
+	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
 }
 
 bool Application::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice) const
@@ -205,42 +204,6 @@ QueueFamilyIndices Application::findQueueFamiles(const vk::PhysicalDevice& devic
 		i++;
 	}
 	return indices;
-}
-
-void Application::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Image& image, vk::DeviceMemory& imageMemory)
-{
-	vk::ImageCreateInfo imageInfo{};
-	imageInfo.setImageType(vk::ImageType::e2D);
-	imageInfo.extent.setWidth(width);
-	imageInfo.extent.setHeight(height);
-	imageInfo.extent.setDepth(1);
-	imageInfo.setMipLevels(1);
-	imageInfo.setArrayLayers(1);
-	imageInfo.setFormat(format);
-	imageInfo.setTiling(tiling);
-	imageInfo.setInitialLayout(vk::ImageLayout::eUndefined);
-	imageInfo.setUsage(usage);
-	imageInfo.setSharingMode(vk::SharingMode::eExclusive);
-	imageInfo.setSamples(vk::SampleCountFlagBits::e1);
-
-	image = device.createImage(imageInfo);
-	if (image == vk::Image{})
-	{
-		ENGINE_ASSERT(false, "Failed to create image");
-	}
-	auto memoryRequirements = device.getImageMemoryRequirements(image);
-
-	vk::MemoryAllocateInfo allocInfo{};
-	allocInfo.setAllocationSize(memoryRequirements.size);
-	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, properties));
-
-	imageMemory = device.allocateMemory(allocInfo);
-	if (imageMemory == vk::DeviceMemory{})
-	{
-		ENGINE_ASSERT(false, "Failed to allocate image memory");
-	}
-	device.bindImageMemory(image, imageMemory, 0);
-
 }
 
 void Application::transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
@@ -367,11 +330,8 @@ vk::CommandBuffer Application::beginSingleTimeCommand()
 	auto commandBuffers = device.allocateCommandBuffers(allocInfo);
 	for (const auto& commandBuffer : commandBuffers)
 	{
-		if (commandBuffer == vk::CommandBuffer{})
-		{
-			ENGINE_ASSERT(false, "Failed to allocate command buffer");
-		}
-
+		ENGINE_ASSERT(commandBuffer != vk::CommandBuffer{}, "Failed to allocate command buffer");
+	
 	} 
 	vk::CommandBufferBeginInfo beginInfo{};
 	beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
@@ -388,7 +348,7 @@ void Application::endSingleTimeCommand(vk::CommandBuffer commandBuffer)
 	submitInfo.setCommandBufferCount(1);
 	submitInfo.setCommandBuffers(commandBuffer);
 
-	graphicsQueue.submit(submitInfo, VK_NULL_HANDLE);
+	graphicsQueue.submit(submitInfo, vk::Fence{});
 	graphicsQueue.waitIdle();
 
 	device.freeCommandBuffers(commandPool, commandBuffer);
@@ -431,10 +391,7 @@ void Application::createInstance()
 
 
 	instance = vk::createInstance(createInfo);
-	if (instance == vk::Instance{})
-	{
-		ENGINE_ASSERT(false, "Failed to create instance");
-	}
+	ENGINE_ASSERT(instance != vk::Instance{}, "Failed to create instance");
 }
 
 void Application::createSurface()
@@ -455,11 +412,7 @@ void Application::pickPhysicalDevice()
 			break;
 		}
 	}
-
-	if (physicalDevice == vk::PhysicalDevice{})
-	{
-		ENGINE_ASSERT(false, "Failed to select a suitable device");
-	}
+	ENGINE_ASSERT(physicalDevice != vk::PhysicalDevice{}, "Failed to select a suitable device");
 
 	auto supported = checkDeviceExtensionSupport(physicalDevice);
 	ENGINE_ASSERT(supported, "Device does not support required extensions");
@@ -506,10 +459,7 @@ void Application::createLogicalDevice()
 
 	device = physicalDevice.createDevice(deviceCreateInfo);
 
-	if (device == vk::Device{})
-	{
-		ENGINE_ASSERT(false, "Failed to create logical device");
-	}
+	ENGINE_ASSERT(device != vk::Device{}, "Failed to create logical device");
 
 	graphicsQueue = device.getQueue(indices.graphicsFamily.value(), 0);
 	presentQueue = device.getQueue(indices.presentFamily.value(), 0);
@@ -542,7 +492,7 @@ void Application::setupDebugMessenger()
 
 	if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
 	{
-		ENGINE_ASSERT("{0}", "Failed to set up debug messenger");
+		ENGINE_ASSERT(false, "Failed to set up debug messenger");
 	}
 }
 
@@ -596,10 +546,7 @@ void Application::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, 
 
 	buffer = device.createBuffer(bufferInfo);
 
-	if (buffer == vk::Buffer{})
-	{
-		ENGINE_ASSERT(false, "Failed to create vertex buffer");
-	}
+	ENGINE_ASSERT(buffer != vk::Buffer{}, "Failed to create vertex buffer");
 
 	auto memoryRequirements = device.getBufferMemoryRequirements(buffer);
 
@@ -609,10 +556,7 @@ void Application::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, 
 
 	bufferMemory = device.allocateMemory(allocInfo);
 
-	if (bufferMemory == vk::DeviceMemory{})
-	{
-		ENGINE_ASSERT(false, "Failed to allocate vertex memory");
-	}
+	ENGINE_ASSERT(bufferMemory != vk::DeviceMemory{}, "Failed to allocate vertex memory");
 
 	device.bindBufferMemory(buffer, bufferMemory, 0);
 }
@@ -704,26 +648,13 @@ void Application::createSwapchain()
 
 	swapchain = device.createSwapchainKHR(createInfo);
 
-	if (swapchain == vk::SwapchainKHR{})
-	{
-		ENGINE_ASSERT(false, "Failed to create swap chain");
-	}
+	ENGINE_ASSERT(swapchain != vk::SwapchainKHR{}, "Failed to create swap chain");
 
 	swapchainImages = device.getSwapchainImagesKHR(swapchain);
 
 	ENGINE_ASSERT(!swapchainImages.empty(), "Failed to retrieve swapchain images");
 	swapchainFormat = surfaceFormat.format;
 	swapchainExtent = extent;
-}
-
-void Application::createImageViews()
-{
-	swapchainImageViews.resize(swapchainImages.size());
-
-	for (int i = 0; i < swapchainImages.size(); i++)
-	{
-		swapchainImageViews[i] = createImageView(swapchainImages[i], swapchainFormat, vk::ImageAspectFlagBits::eColor);
-	}
 }
 
 void Application::createRenderPass()
@@ -777,10 +708,7 @@ void Application::createRenderPass()
 
 	renderPass = device.createRenderPass(renderPassInfo);
 
-	if (renderPass == vk::RenderPass{})
-	{
-		ENGINE_ASSERT(false, "Failed to create render pass");
-	}
+	ENGINE_ASSERT(renderPass != vk::RenderPass{}, "Failed to create render pass");
 }
 
 void Application::createDescriptorSetLayout()
@@ -804,10 +732,7 @@ void Application::createDescriptorSetLayout()
 	layoutInfo.setBindings(bindings);
 
 	descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
-	if (descriptorSetLayout == vk::DescriptorSetLayout{})
-	{
-		ENGINE_ASSERT(false, "Failed to create descriptor set");
-	}
+	ENGINE_ASSERT(descriptorSetLayout != vk::DescriptorSetLayout{}, "Failed to create descriptor set");
 }
 
 void Application::createGraphicsPipeline()
@@ -921,10 +846,8 @@ void Application::createGraphicsPipeline()
 	pipelineLayoutInfo.setSetLayouts(descriptorSetLayout);
 
 	pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
-	if (pipelineLayout == vk::PipelineLayout{})
-	{
-		ENGINE_ASSERT(false, "FAiled to create pipeline layout");
-	}
+	ENGINE_ASSERT(pipelineLayout != vk::PipelineLayout{}, "FAiled to create pipeline layout");
+
 	vk::GraphicsPipelineCreateInfo pipelineInfo{};
 	pipelineInfo.setStageCount(2);
 	pipelineInfo.setPStages(shaderStages);
@@ -946,10 +869,7 @@ void Application::createGraphicsPipeline()
 	vk::PipelineCache cache{};
 
 	auto success = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, reinterpret_cast<const VkGraphicsPipelineCreateInfo*>(&pipelineInfo), nullptr, reinterpret_cast<VkPipeline*>(&graphicsPipeline));
-	if (success != VK_SUCCESS)
-	{
-		ENGINE_ASSERT(false, "Failed to create graphics pipeline");
-	}
+	ENGINE_ASSERT(success == VK_SUCCESS, "Failed to create graphics pipeline");
 }
 
 void Application::createFramebuffers()
@@ -957,7 +877,7 @@ void Application::createFramebuffers()
 	swapChainFramebuffers.resize(0);
 	for (const auto& swapchainImageView : swapchainImageViews)
 	{
-		vk::ImageView attachments[] =
+		const auto attachments =
 		{
 			swapchainImageView,
 			depthImage.view
@@ -971,10 +891,7 @@ void Application::createFramebuffers()
 		framebufferInfo.setLayers(1);
 
 		auto framebuffer = device.createFramebuffer(framebufferInfo);
-		if (framebuffer == vk::Framebuffer{})
-		{
-			ENGINE_ASSERT(false, "Failed to create framebuffer");
-		}
+		ENGINE_ASSERT(framebuffer != vk::Framebuffer{}, "Failed to create framebuffer");
 		swapChainFramebuffers.emplace_back(framebuffer);
 	}
 
@@ -989,16 +906,21 @@ void Application::createCommandPool()
 	poolInfo.setQueueFamilyIndex(queuFamilyIndices.graphicsFamily.value());
 
 	commandPool = device.createCommandPool(poolInfo);
-	if (commandPool == vk::CommandPool{})
-	{
-		ENGINE_ASSERT(false, "FAiled to create command pool");
-	}
+	ENGINE_ASSERT(commandPool != vk::CommandPool{}, "FAiled to create command pool");
 }
 
 void Application::createDepthResources()
 {
 	auto format = findDepthFormat();
-	depthImage = Image(physicalDevice, device, swapchainExtent.width, swapchainExtent.height, format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eDepth);
+	ImageProperties properties
+	{
+		.format = format,
+		.tiling = vk::ImageTiling::eOptimal,
+		.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+		.aspect = vk::ImageAspectFlagBits::eDepth
+	};
+	depthImage = Image(physicalDevice, device, swapchainExtent.width, swapchainExtent.height, properties);
 
 	transitionImageLayout(depthImage.image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 }
@@ -1020,10 +942,7 @@ void Application::createTextureImage()
 		}
 	}
 
-	if (!pixels)
-	{
-		ENGINE_ASSERT(false, "Failed to load image");
-	}
+	ENGINE_ASSERT(pixels, "Failed to load image");
 
 	vk::DeviceSize imageSize = width * height * 4;
 
@@ -1039,7 +958,16 @@ void Application::createTextureImage()
 	stbi_image_free(pixels);
 
 	auto format = vk::Format::eB8G8R8A8Srgb;
-	textureImage = Image(physicalDevice, device, width, height, format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::ImageAspectFlagBits::eColor);
+	ImageProperties properties
+	{
+		.format = format,
+		.tiling = vk::ImageTiling::eOptimal,
+		.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+		.aspect = vk::ImageAspectFlagBits::eColor
+	};
+
+	textureImage = Image(physicalDevice, device, width, height, properties);
 	transitionImageLayout(textureImage.image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 	copyBufferToImage(stagingBuffer, textureImage.image, width, height);
 	transitionImageLayout(textureImage.image, format, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -1076,30 +1004,7 @@ void Application::createTextureSampler()
 	samplerInfo.setMaxLod(0.f);
 
 	textureSampler = device.createSampler(samplerInfo);
-	if (textureSampler == vk::Sampler{})
-	{
-		ENGINE_ASSERT(false, "FAiled to create sampler");
-	}
-}
-
-vk::ImageView Application::createImageView(const vk::Image& image, const vk::Format& format, vk::ImageAspectFlags imageAspects)
-{
-	vk::ImageViewCreateInfo viewInfo{};
-	viewInfo.setImage(image);
-	viewInfo.setViewType(vk::ImageViewType::e2D);
-	viewInfo.setFormat(format);
-	viewInfo.subresourceRange.setAspectMask(imageAspects);
-	viewInfo.subresourceRange.setBaseMipLevel(0);
-	viewInfo.subresourceRange.setLevelCount(1);
-	viewInfo.subresourceRange.setBaseArrayLayer(0);
-	viewInfo.subresourceRange.setLayerCount(1);
-	auto imageView = device.createImageView(viewInfo);
-
-	if (imageView == vk::ImageView{})
-	{
-		ENGINE_ASSERT(false, "FAiled to create image view");
-	}
-	return imageView;
+	ENGINE_ASSERT(textureSampler != vk::Sampler{}, "Failed to create sampler");
 }
 
 void Application::createVertexBuffer()
@@ -1178,10 +1083,7 @@ void Application::createDescriptorPool()
 	poolInfo.setMaxSets(MaxFramesInFlight);
 
 	descriptorPool = device.createDescriptorPool(poolInfo);
-	if (descriptorPool == vk::DescriptorPool{})
-	{
-		ENGINE_ASSERT(false, "Failed to create desriptor pool")
-	}
+	ENGINE_ASSERT(descriptorPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
 }
 
 void Application::createDescriptorSets()
@@ -1196,11 +1098,7 @@ void Application::createDescriptorSets()
 	descriptorSets = device.allocateDescriptorSets(allocInfo);
 	for (const auto& descriptorSet : descriptorSets)
 	{
-
-	if (descriptorSet == vk::DescriptorSet{})
-	{
-		ENGINE_ASSERT(false, "Failed to create descriptor set");
-	}
+		ENGINE_ASSERT(descriptorSet != vk::DescriptorSet{}, "Failed to create descriptor set");
 	}
 
 	for (auto i = 0; i < MaxFramesInFlight; i++)
@@ -1253,10 +1151,7 @@ void Application::createCommandBuffers()
 
 	for (const auto& commandBuffer : commandBuffers)
 	{
-		if (commandBuffer == vk::CommandBuffer{})
-		{
-			ENGINE_ASSERT(false, "Failed to create command buffer");
-		}
+		ENGINE_ASSERT(commandBuffer != vk::CommandBuffer{}, "Failed to create command buffer");
 	}
 }
 
@@ -1273,24 +1168,14 @@ void Application::createSyncObjects()
 		fenceInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
 		imageAvailableSemaphores[i] = device.createSemaphore(semaphoreInfo);
-		if (imageAvailableSemaphores[i] == vk::Semaphore{})
-		{
-			ENGINE_ASSERT(false, "Failed to create semaphore");
-		}
+		ENGINE_ASSERT(imageAvailableSemaphores[i] != vk::Semaphore{}, "Failed to create semaphore");
+
 		renderFinishedSemaphores[i] = device.createSemaphore(semaphoreInfo);
-		if (renderFinishedSemaphores[i] == vk::Semaphore{})
-		{
-			ENGINE_ASSERT(false, "Failed to create semaphore");
-		}
+		ENGINE_ASSERT(renderFinishedSemaphores[i] != vk::Semaphore{}, "Failed to create semaphore");
 
 		inFlightFences[i] = device.createFence(fenceInfo);
-		if (inFlightFences[i] == vk::Fence{})
-		{
-			ENGINE_ASSERT(false, "Failed to create semaphore");
-		}
-
+		ENGINE_ASSERT(inFlightFences[i] != vk::Fence{}, "Failed to create semaphore");
 	}
-
 }
 
 void Application::updateUniformBuffer(uint32_t currentImage)
@@ -1328,7 +1213,6 @@ void Application::recreateSwapChain()
 	cleanupSwapchain();
 
 	createSwapchain();
-	createImageViews();
 	createDepthResources();
 	createFramebuffers();
 }
@@ -1457,10 +1341,8 @@ vk::ShaderModule Application::createShaderModule(const std::vector<char>& code)
 	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
 	auto module = device.createShaderModule(createInfo);
-	if (module == vk::ShaderModule{})
-	{
-		ENGINE_ASSERT(false, "Failed to create shader module");
-	}
+	ENGINE_ASSERT(module != vk::ShaderModule{}, "Failed to create shader module");
+
 	return module;
 }
 
@@ -1484,10 +1366,7 @@ std::vector<char> Application::readShader(const std::filesystem::path& filePath)
 	}
 	std::ifstream file(shaderPath.c_str(), std::ios::ate | std::ios::binary);
 
-	if (!file.is_open())
-	{
-		ENGINE_ASSERT(false, "Failed to open file");
-	}
+	ENGINE_ASSERT(file.is_open(), "Failed to open file");
 
 	auto fileSize = file.tellg();
 	std::vector<char> buffer(fileSize);

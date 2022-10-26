@@ -173,8 +173,6 @@ private:
 	void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
 	void copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
 	QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device) const;
-	void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Image& image, vk::DeviceMemory& imageMemory);
-	vk::ImageView createImageView(const vk::Image& image, const vk::Format& format, vk::ImageAspectFlags imageAspects);
 	void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 
 	vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
@@ -191,7 +189,6 @@ private:
 	void pickPhysicalDevice();
 	void createLogicalDevice();
 	void createSwapchain();
-	void createImageViews();
 	void createRenderPass();
 	void createDescriptorSetLayout();
 	void createGraphicsPipeline();

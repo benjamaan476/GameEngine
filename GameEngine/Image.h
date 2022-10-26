@@ -4,6 +4,16 @@
 
 #include <vulkan/vulkan.hpp>
 
+struct ImageProperties
+{
+	vk::Format format;
+	vk::ImageTiling tiling;
+	vk::ImageUsageFlags usage;
+	vk::MemoryPropertyFlags memoryProperties;
+	vk::ImageAspectFlags aspect;
+};
+
+
 class Image
 {
 	//Handle
@@ -12,21 +22,21 @@ class Image
 
 	uint32_t width{};
 	uint32_t height{};
-
-	vk::Format format{};
-
+	ImageProperties properties;
 public:
 	vk::Image image{};
 	vk::DeviceMemory memory{};
 	vk::ImageView view{};
 
+
 public:
 	Image() {}
-	Image(vk::PhysicalDevice physicalDevice, vk::Device device, uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::ImageAspectFlags imageAspect)
-		: physicalDevice{ physicalDevice }, device{ device }, width {width}, height{ height }, format{format}
+	Image(vk::PhysicalDevice physicalDevice, vk::Device device, uint32_t width, uint32_t height, ImageProperties properties)
+		: physicalDevice{ physicalDevice }, device{ device }, width{ width }, height{ height }, properties{ properties }
 	{
-		createImage(width, height, format, tiling, usage, properties);
-		createImageView(format, imageAspect);
+		createImage();
+		createMemory();
+		createImageView();
 	}
 	~Image()
 	{
@@ -39,8 +49,10 @@ public:
 		device.freeMemory(memory);
 		device.destroyImage(image);
 	}
+private:
 
 	uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const;
-	void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties);
-	void createImageView(vk::Format format, vk::ImageAspectFlags imageAspect);
+	void createImage();
+	void createMemory();
+	void createImageView();
 };
