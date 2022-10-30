@@ -1014,19 +1014,7 @@ void Application::createDescriptorSets()
 
 void Application::createCommandBuffers()
 {
-	commandBuffers.resize(MaxFramesInFlight);
-
-	vk::CommandBufferAllocateInfo allocInfo{};
-	allocInfo.setCommandPool(state.commandPool);
-	allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
-	allocInfo.setCommandBufferCount(static_cast<uint32_t>(commandBuffers.size()));
-
-	commandBuffers = state.device.allocateCommandBuffers(allocInfo);
-
-	for (const auto& commandBuffer : commandBuffers)
-	{
-		ENGINE_ASSERT(commandBuffer != vk::CommandBuffer{}, "Failed to create command buffer");
-	}
+	commandBuffers = CommandBuffer(state, MaxFramesInFlight);
 }
 
 void Application::createSyncObjects()
@@ -1091,57 +1079,6 @@ void Application::recreateSwapChain()
 	createFramebuffers();
 }
 
-void Application::recordCommandBuffer(const vk::CommandBuffer& commandBuffers, uint32_t imageIndex) const
-{
-	vk::CommandBufferBeginInfo beginInfo{};
-	beginInfo.setPInheritanceInfo(nullptr);
-
-	commandBuffers.begin(beginInfo);
-
-	vk::RenderPassBeginInfo renderPassInfo{};
-	renderPassInfo.setRenderPass(renderPass);
-	renderPassInfo.setFramebuffer(swapChainFramebuffers[imageIndex]);
-	renderPassInfo.setRenderArea(vk::Rect2D({ 0, 0 }, swapchainExtent));
-
-	vk::ClearValue clearColour;
-	clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });
-	vk::ClearValue clearDepth;
-	clearDepth.depthStencil = {{1.f, 0}};
-
-	auto clearValues = { clearColour, clearDepth };
-	renderPassInfo.setClearValues(clearValues);
-
-	commandBuffers.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-	commandBuffers.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
-
-	vk::DeviceSize offsets = { 0 };
-	commandBuffers.bindVertexBuffers(0, vertexBuffer.buffer, offsets);
-	commandBuffers.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
-	commandBuffers.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
-
-	vk::Viewport viewport{};
-	viewport.setX(0.f);
-	viewport.setY(0.f);
-	viewport.setWidth( static_cast<float>(swapchainExtent.width));
-	viewport.setHeight(static_cast<float>(swapchainExtent.height));
-	viewport.setMinDepth(0.f);
-	viewport.setMaxDepth(1.f);
-
-	commandBuffers.setViewport(0, viewport);
-
-	vk::Rect2D scissor{};
-	scissor.setOffset({ 0,0 });
-	scissor.setExtent(swapchainExtent);
-
-	commandBuffers.setScissor(0, scissor);
-
-
-	commandBuffers.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-	commandBuffers.endRenderPass();
-	commandBuffers.end();
-}
-
 void Application::drawFrame() 
 {
 	state.device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
@@ -1163,8 +1100,55 @@ void Application::drawFrame()
 
 	updateUniformBuffer(currentFrame);
 
-	commandBuffers[currentFrame].reset();
-	recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+	auto commandBuffer = commandBuffers[currentFrame];
+
+	commandBuffers.record(currentFrame, imageIndex,
+		[&](vk::CommandBuffer commandBuffer) {
+			vk::RenderPassBeginInfo renderPassInfo{};
+			renderPassInfo.setRenderPass(renderPass);
+			renderPassInfo.setFramebuffer(swapChainFramebuffers[imageIndex]);
+			renderPassInfo.setRenderArea(vk::Rect2D({ 0, 0 }, swapchainExtent));
+
+			vk::ClearValue clearColour;
+			clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });
+			vk::ClearValue clearDepth;
+			clearDepth.depthStencil = { {1.f, 0} };
+
+			auto clearValues = { clearColour, clearDepth };
+			renderPassInfo.setClearValues(clearValues);
+
+			commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+			commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+
+			vk::DeviceSize offsets = { 0 };
+			commandBuffer.bindVertexBuffers(0, vertexBuffer.buffer, offsets);
+			commandBuffer.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
+			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
+
+			vk::Viewport viewport{};
+			viewport.setX(0.f);
+			viewport.setY(0.f);
+			viewport.setWidth(static_cast<float>(swapchainExtent.width));
+			viewport.setHeight(static_cast<float>(swapchainExtent.height));
+			viewport.setMinDepth(0.f);
+			viewport.setMaxDepth(1.f);
+
+			commandBuffer.setViewport(0, viewport);
+
+			vk::Rect2D scissor{};
+			scissor.setOffset({ 0,0 });
+			scissor.setExtent(swapchainExtent);
+
+			commandBuffer.setScissor(0, scissor);
+
+
+			commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+			commandBuffer.endRenderPass();
+
+		});
+	//commandBuffer.reset();
+	//recordCommandBuffer(commandBuffer, imageIndex);
 
 	vk::SubmitInfo submitInfo{};
 	
@@ -1176,7 +1160,7 @@ void Application::drawFrame()
 	submitInfo.setWaitSemaphores(imageAvailableSemaphores[currentFrame]);
 	submitInfo.setWaitDstStageMask(waitStages);
 	//submitInfo.setCommandBufferCount(1);
-	submitInfo.setCommandBuffers(commandBuffers[currentFrame]);
+	submitInfo.setCommandBuffers(commandBuffer);
 	
 	//submitInfo.setSignalSemaphoreCount(1);
 	submitInfo.setSignalSemaphores(renderFinishedSemaphores[currentFrame]);

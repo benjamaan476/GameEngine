@@ -204,8 +204,6 @@ private:
 
 	void recreateSwapChain();
 
-	void recordCommandBuffer(const vk::CommandBuffer& commandBuffers, uint32_t imageIndex) const;
-
 	void drawFrame();
 	vk::ShaderModule createShaderModule(const std::vector<char>& code);
 
@@ -243,8 +241,7 @@ private:
 	DepthImage depthImage{};
 
 
-	std::vector<vk::CommandBuffer> commandBuffers;
-
+	CommandBuffer commandBuffers;
 	std::vector<vk::Semaphore> imageAvailableSemaphores;
 	std::vector<vk::Semaphore> renderFinishedSemaphores;
 	std::vector<vk::Fence> inFlightFences;
