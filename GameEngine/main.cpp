@@ -9,7 +9,7 @@
 
 int main()
 {
-	Application app{ "Vulkan", 800, 600 };
+	Application app{ "Vulkan", 800, 800 };
 
 	try
 	{

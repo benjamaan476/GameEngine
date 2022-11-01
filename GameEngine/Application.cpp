@@ -416,16 +416,17 @@ void Application::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtil
 
 void Application::copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
 {
-	auto commandBuffer = beginSingleTimeCommand();
+	OneTimeCommandBuffer(state,
+		[&](vk::CommandBuffer commandBuffer)
+		{
+			vk::BufferCopy copyRegion{};
+			copyRegion.setSrcOffset(0);
+			copyRegion.setDstOffset(0);
+			copyRegion.setSize(size);
 
-	vk::BufferCopy copyRegion{};
-	copyRegion.setSrcOffset(0);
-	copyRegion.setDstOffset(0);
-	copyRegion.setSize(size);
+			commandBuffer.copyBuffer(srcBuffer, dstBuffer, copyRegion);
 
-	commandBuffer.copyBuffer(srcBuffer, dstBuffer, copyRegion);
-
-	endSingleTimeCommand(commandBuffer);
+		});
 }
 
 
@@ -589,9 +590,9 @@ void Application::createDescriptorSetLayout()
 
 void Application::createGraphicsPipeline()
 {
-	std::filesystem::path vertShader("vert.spv");
+	std::filesystem::path vertShader("boardVert.spv");
 	auto vertShaderCode = readShader(vertShader);
-	auto fragShaderCode = readShader("frag.spv");
+	auto fragShaderCode = readShader("boardFrag.spv");
 
 	vertShaderModule = createShaderModule(vertShaderCode);
 	fragShaderModule = createShaderModule(fragShaderCode);
@@ -650,7 +651,7 @@ void Application::createGraphicsPipeline()
 	rasterizer.setRasterizerDiscardEnable(false);
 	rasterizer.setPolygonMode(vk::PolygonMode::eFill);
 	rasterizer.setLineWidth(1.f);
-	rasterizer.setCullMode(vk::CullModeFlagBits::eBack);
+	rasterizer.setCullMode(vk::CullModeFlagBits::eNone);
 	rasterizer.setFrontFace(vk::FrontFace::eCounterClockwise);
 
 	rasterizer.setDepthBiasEnable(false);
@@ -1142,13 +1143,11 @@ void Application::drawFrame()
 			commandBuffer.setScissor(0, scissor);
 
 
-			commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+			commandBuffer.drawIndexed(6, 1, 0, 0, 0);
 
 			commandBuffer.endRenderPass();
 
 		});
-	//commandBuffer.reset();
-	//recordCommandBuffer(commandBuffer, imageIndex);
 
 	vk::SubmitInfo submitInfo{};
 	

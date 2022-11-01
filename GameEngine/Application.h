@@ -4,6 +4,7 @@
 
 #include "Image.h"
 #include "Buffer.h"
+#include "CommandBuffer.h"
 
 #include "Platform/Window.h"
 #include <optional>
