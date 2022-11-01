@@ -7,6 +7,8 @@
 #include <functional>
 #include <tuple>
 
+#include <GLFW/glfw3.h>
+
 struct WindowProperties
 {
 	std::string title;
@@ -22,7 +24,7 @@ public:
 	using EventCallback = std::function<void(void)>;
 
 	static SharedPtr create(const WindowProperties& properties);
-	virtual vk::SurfaceKHR createSurface(const vk::Instance& instance) = 0;
+	virtual vk::SurfaceKHR createSurface(const vk::Instance& instance, vk::AllocationCallbacks allocator) = 0;
 	virtual ~Window() = default;
 
 	virtual void OnUpdate() const = 0;
@@ -39,5 +41,7 @@ public:
 
 	virtual std::pair<uint32_t, uint32_t> getFramebufferSize() const = 0;
 	virtual void waitEvents() = 0;
+
+	virtual GLFWwindow* getWindow() const = 0;
 };
 

@@ -13,7 +13,7 @@ class WindowsWindow : public Window
 {
 public:
 	static Window::SharedPtr create(const WindowProperties& properties);
-	vk::SurfaceKHR createSurface(const vk::Instance& instance) override;
+	vk::SurfaceKHR createSurface(const vk::Instance& instance, vk::AllocationCallbacks allocator) override;
 	~WindowsWindow() override;
 
 	void OnUpdate() const override;
@@ -30,6 +30,8 @@ public:
 
 	std::pair<uint32_t, uint32_t> getFramebufferSize() const override;
 	void waitEvents() override;
+
+	GLFWwindow* getWindow() const override { return window; }
 private:
 	explicit WindowsWindow(const WindowProperties& properties);
 	virtual void Shutdown();

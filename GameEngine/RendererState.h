@@ -5,10 +5,13 @@
 struct RendererState
 {
 	vk::Instance instance{};
+	vk::AllocationCallbacks allocator{};
 	vk::PhysicalDevice physicalDevice{};
 	vk::Device device{};
 	vk::CommandPool commandPool{};
 	vk::Queue graphicsQueue{};
+	vk::Queue presentQueue{};
+	uint32_t queueFamily{};
 
 	vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
 	{

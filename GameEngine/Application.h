@@ -156,6 +156,7 @@ private:
 	const static inline std::vector<std::filesystem::path> gTextureDirectories = getInitialTextureDirectories();
 
 	void initWindow(std::string_view name, uint32_t width, uint32_t height);
+	void initGui();
 	void initVulkan();
 	void mainLoop();
 	void cleanup();
@@ -215,7 +216,6 @@ private:
 
 	RendererState state{};
 	VkDebugUtilsMessengerEXT debugMessenger;
-	vk::Queue presentQueue;
 	vk::SurfaceKHR surface;
 	vk::Format swapchainFormat;
 	vk::Extent2D swapchainExtent;
@@ -226,6 +226,7 @@ private:
 	vk::ShaderModule fragShaderModule;
 	vk::RenderPass renderPass;
 	vk::DescriptorSetLayout descriptorSetLayout;
+	vk::DescriptorPool imguiPool;
 	vk::DescriptorPool descriptorPool;
 	std::vector<vk::DescriptorSet> descriptorSets;
 	vk::PipelineLayout pipelineLayout;

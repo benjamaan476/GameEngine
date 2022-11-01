@@ -5,7 +5,7 @@ Window::SharedPtr WindowsWindow::create(const WindowProperties& properties)
 	return std::shared_ptr<WindowsWindow>(new WindowsWindow(properties));
 }
 
-vk::SurfaceKHR WindowsWindow::createSurface(const vk::Instance& instance)
+vk::SurfaceKHR WindowsWindow::createSurface(const vk::Instance& instance, const vk::AllocationCallbacks allocator)
 {
 	vk::SurfaceKHR surface;
 	glfwCreateWindowSurface(instance, window, nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));

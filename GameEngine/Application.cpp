@@ -9,6 +9,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 
 Application::Application(std::string_view name, uint32_t width, uint32_t height)
 {
@@ -20,6 +23,7 @@ Application::Application(std::string_view name, uint32_t width, uint32_t height)
 void Application::run()
 {
 	initVulkan();
+	initGui();
 	mainLoop();
 	cleanup();
 }
@@ -37,10 +41,10 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(VkDebugUtilsMessageSev
 	case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
 		LOG_ERROR("{0}", callbackData->pMessage);
 		break;
-	//case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-	//	LOG_TRACE("{0}", callbackData->pMessage);
-	//default:
-	//	LOG_ERROR("{0}", "Debug layer");
+	case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+		LOG_TRACE("{0}", callbackData->pMessage);
+	default:
+		LOG_ERROR("{0}", "Debug layer");
 	}
 
 	return true;
@@ -51,6 +55,49 @@ void Application::initWindow(std::string_view name, uint32_t width, uint32_t hei
 {
 	WindowProperties windowProperties{ name.data(), width, height};
 	window = Window::create(windowProperties);
+}
+
+void Application::initGui()
+{
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+	ImGui::StyleColorsDark();
+	ImGui_ImplGlfw_InitForVulkan(window->getWindow(), true);
+
+	ImGui_ImplVulkan_InitInfo initInfo{};
+	initInfo.Instance = state.instance;
+	initInfo.PhysicalDevice = state.physicalDevice;
+	initInfo.Device = state.device;
+	initInfo.Queue = state.graphicsQueue;
+	initInfo.QueueFamily = state.queueFamily;
+	initInfo.DescriptorPool = imguiPool;
+	initInfo.Subpass = 0;
+	initInfo.MinImageCount = 2;
+	initInfo.ImageCount = swapchainImages.size();
+	initInfo.Allocator = nullptr;
+	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	initInfo.CheckVkResultFn = [](VkResult err)
+	{   
+		if (err == 0)
+			return;
+	fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+	if (err < 0)
+		abort();
+	};
+	ImGui_ImplVulkan_Init(&initInfo, renderPass);
+
+	state.device.resetCommandPool(state.commandPool);
+
+	OneTimeCommandBuffer commnad{ state,
+		[](vk::CommandBuffer buffer)
+		{
+					ImGui_ImplVulkan_CreateFontsTexture(buffer);
+		}};
+
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
 void Application::initVulkan()
@@ -80,9 +127,44 @@ void Application::initVulkan()
 
 void Application::mainLoop()
 {
+	bool show_demo_window = true;
+	bool show_another_window = false;
+	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	int counter = 0;
+
 	while (!window->isRunning())
 	{
 		window->OnUpdate();
+		
+		{
+			// Start the Dear ImGui frame
+			ImGui_ImplVulkan_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+
+			ImGui::ShowDemoWindow(&show_demo_window);
+
+			ImGui::Begin("Hello, world!", &show_demo_window);                          // Create a window called "Hello, world!" and append into it.
+
+			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+			ImGui::Checkbox("Another Window", &show_another_window);
+
+			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+			ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+				counter++;
+			ImGui::SameLine();
+			ImGui::Text("counter = %d", counter);
+
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::End();
+
+			ImGui::Render();
+
+		}
+
 		drawFrame();
 	}
 
@@ -282,14 +364,13 @@ void Application::createInstance()
 		createInfo.ppEnabledLayerNames = validationLayers.data();
 	}
 
-
 	state.instance = vk::createInstance(createInfo);
 	ENGINE_ASSERT(state.instance != vk::Instance{}, "Failed to create instance");
 }
 
 void Application::createSurface()
 {
-	surface = window->createSurface(state.instance);
+	surface = window->createSurface(state.instance, nullptr);
 }
 
 void Application::pickPhysicalDevice()
@@ -350,12 +431,14 @@ void Application::createLogicalDevice()
 		deviceCreateInfo.setEnabledLayerCount(0);
 	}
 
-	state.device = state.physicalDevice.createDevice(deviceCreateInfo);
+	state.device = state.physicalDevice.createDevice(deviceCreateInfo/*, state.allocator*/);
 
 	ENGINE_ASSERT(state.device != vk::Device{}, "Failed to create logical device");
 
 	state.graphicsQueue = state.device.getQueue(indices.graphicsFamily.value(), 0);
-	presentQueue = state.device.getQueue(indices.presentFamily.value(), 0);
+	state.presentQueue = state.device.getQueue(indices.presentFamily.value(), 0);
+
+	state.queueFamily = indices.graphicsFamily.value();
 
 }
 
@@ -382,8 +465,9 @@ void Application::setupDebugMessenger()
 	createInfo.pUserData = nullptr;
 	createInfo.pfnUserCallback = debugCallback;
 
-
+	auto allocator = (const VkAllocationCallbacks)state.allocator;
 	if (CreateDebugUtilsMessengerEXT(state.instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+	//if (CreateDebugUtilsMessengerEXT(state.instance, &createInfo, &allocator, &debugMessenger) != VK_SUCCESS)
 	{
 		ENGINE_ASSERT(false, "Failed to set up debug messenger");
 	}
@@ -584,7 +668,7 @@ void Application::createDescriptorSetLayout()
 	vk::DescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.setBindings(bindings);
 
-	descriptorSetLayout = state.device.createDescriptorSetLayout(layoutInfo);
+	descriptorSetLayout = state.device.createDescriptorSetLayout(layoutInfo/*, state.allocator*/);
 	ENGINE_ASSERT(descriptorSetLayout != vk::DescriptorSetLayout{}, "Failed to create descriptor set");
 }
 
@@ -942,23 +1026,45 @@ void Application::createUniformBuffers()
 
 void Application::createDescriptorPool()
 {
-	vk::DescriptorPoolSize poolSize{};
-	poolSize.setType(vk::DescriptorType::eUniformBuffer);
-	poolSize.setDescriptorCount(MaxFramesInFlight);
+	const uint32_t descriptorCount = 1000;
 
-	vk::DescriptorPoolSize samplerPoolSize{};
-	samplerPoolSize.setType(vk::DescriptorType::eCombinedImageSampler);
-	samplerPoolSize.setDescriptorCount(MaxFramesInFlight);
+#define DESCRIPTOR_POOL(name, type) \
+vk::DescriptorPoolSize name{};		\
+name.setType(type);					\
+name.setDescriptorCount(descriptorCount)
 
-	auto pools = { poolSize, samplerPoolSize };
+
+	DESCRIPTOR_POOL(sampler, vk::DescriptorType::eSampler);
+	DESCRIPTOR_POOL(combinedSample, vk::DescriptorType::eCombinedImageSampler);
+	DESCRIPTOR_POOL(sampled, vk::DescriptorType::eSampledImage);
+	DESCRIPTOR_POOL(storageImage, vk::DescriptorType::eStorageImage);
+	DESCRIPTOR_POOL(uniformTexel, vk::DescriptorType::eUniformTexelBuffer);
+	DESCRIPTOR_POOL(storageTexel , vk::DescriptorType::eStorageTexelBuffer);
+	DESCRIPTOR_POOL(uniform, vk::DescriptorType::eUniformBuffer);
+	DESCRIPTOR_POOL(storage, vk::DescriptorType::eStorageBuffer);
+	DESCRIPTOR_POOL(uniformDynamic, vk::DescriptorType::eUniformBufferDynamic);
+	DESCRIPTOR_POOL(storageDynamic, vk::DescriptorType::eStorageBufferDynamic);
+	DESCRIPTOR_POOL(input, vk::DescriptorType::eInputAttachment);
+
+
+	auto pools = { sampler, combinedSample, sampled, storageImage, uniformTexel, storageTexel, uniform, storage, uniformDynamic, storageDynamic, input };
 
 	vk::DescriptorPoolCreateInfo poolInfo{};
 	//poolInfo.setPoolSizeCount(1);
 	poolInfo.setPoolSizes(pools);
-	poolInfo.setMaxSets(MaxFramesInFlight);
+	poolInfo.setMaxSets(descriptorCount * pools.size());
+	poolInfo.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
+	imguiPool = state.device.createDescriptorPool(poolInfo);
+	ENGINE_ASSERT(imguiPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
 
-	descriptorPool = state.device.createDescriptorPool(poolInfo);
+		auto descriptorPools = { uniform, combinedSample };
+
+	vk::DescriptorPoolCreateInfo info{};
+	info.setPoolSizes(descriptorPools);
+	info.setMaxSets(MaxFramesInFlight);
+	descriptorPool = state.device.createDescriptorPool(info);
 	ENGINE_ASSERT(descriptorPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
+
 }
 
 void Application::createDescriptorSets()
@@ -1078,6 +1184,8 @@ void Application::recreateSwapChain()
 	createSwapchain();
 	createDepthResources();
 	createFramebuffers();
+
+	ImGui_ImplVulkan_SetMinImageCount(swapchainImages.size());
 }
 
 void Application::drawFrame() 
@@ -1142,8 +1250,10 @@ void Application::drawFrame()
 
 			commandBuffer.setScissor(0, scissor);
 
-
 			commandBuffer.drawIndexed(6, 1, 0, 0, 0);
+			auto drawData = ImGui::GetDrawData();
+			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer, graphicsPipeline);
+
 
 			commandBuffer.endRenderPass();
 
@@ -1175,7 +1285,7 @@ void Application::drawFrame()
 	presentInfo.setImageIndices(imageIndex);
 	//presentInfo.setResults(nullptr);
 
-	result = presentQueue.presentKHR(&presentInfo);
+	result = state.presentQueue.presentKHR(&presentInfo);
 
 	if (result == vk::Result::eErrorOutOfDateKHR)
 	{
@@ -1251,6 +1361,11 @@ std::vector<Image> Application::getSwapchainImages(vk::SwapchainKHR swapchain)
 void Application::cleanup()
 {
 
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+
+
 	cleanupSwapchain();
 	state.device.destroySampler(textureSampler);
 
@@ -1263,7 +1378,8 @@ void Application::cleanup()
 		state.device.destroySemaphore(renderFinishedSemaphores[i]);
 		state.device.destroySemaphore(imageAvailableSemaphores[i]);
 	}
-	state.device.destroyDescriptorPool(descriptorPool);
+	state.device.destroyDescriptorPool(descriptorPool/*, state.allocator*/);
+	state.device.destroyDescriptorPool(imguiPool/*, state.allocator*/);
 	state.device.destroyCommandPool(state.commandPool);
 	
 	vertexBuffer.destroy();
@@ -1280,11 +1396,14 @@ void Application::cleanup()
 	state.device.destroyShaderModule(fragShaderModule);
 	state.device.destroyShaderModule(vertShaderModule);
 
-	state.device.destroy();
+	state.device.destroy(/*state.allocator*/);
 	state.instance.destroySurfaceKHR(surface);
 	if (enableValidationLayers)
 	{
+		auto allocator = (const VkAllocationCallbacks)state.allocator;
+
 		DestroyDebugUtilsMessengerEXT(state.instance, debugMessenger, nullptr);
+		//DestroyDebugUtilsMessengerEXT(state.instance, debugMessenger, &allocator);
 	}
 	state.instance.destroy();
 }

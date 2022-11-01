@@ -11,7 +11,8 @@
       "name": "imgui",
       "default-features": false,
       "features": [
-        "vulkan-binding"
+        "vulkan-binding",
+        "glfw-binding"
       ]
     },
     "stb"
