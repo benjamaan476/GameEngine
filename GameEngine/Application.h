@@ -159,6 +159,7 @@ private:
 	void initGui();
 	void initVulkan();
 	void mainLoop();
+	void destroyUi();
 	void cleanup();
 	void cleanupSwapchain();
 
@@ -178,9 +179,6 @@ private:
 	std::vector<Image> getSwapchainImages(vk::SwapchainKHR swapchain);
 
 	bool hasStencilComponent(vk::Format format) const;
-
-	vk::CommandBuffer beginSingleTimeCommand();
-	void endSingleTimeCommand(vk::CommandBuffer commandBuffer);
 
 	void createInstance();
 	void createSurface();
@@ -225,6 +223,7 @@ private:
 	vk::ShaderModule vertShaderModule;
 	vk::ShaderModule fragShaderModule;
 	vk::RenderPass renderPass;
+	vk::RenderPass imguiRenderPass;
 	vk::DescriptorSetLayout descriptorSetLayout;
 	vk::DescriptorPool imguiPool;
 	vk::DescriptorPool descriptorPool;
@@ -232,6 +231,7 @@ private:
 	vk::PipelineLayout pipelineLayout;
 	vk::Pipeline graphicsPipeline;
 	std::vector<vk::Framebuffer> swapChainFramebuffers;
+	std::vector<vk::Framebuffer> imguiFramebuffers;
 	
 	Buffer vertexBuffer;
 	Buffer indexBuffer;
@@ -244,6 +244,7 @@ private:
 
 
 	CommandBuffer commandBuffers;
+	CommandBuffer imguiCommandBuffers;
 	std::vector<vk::Semaphore> imageAvailableSemaphores;
 	std::vector<vk::Semaphore> renderFinishedSemaphores;
 	std::vector<vk::Fence> inFlightFences;

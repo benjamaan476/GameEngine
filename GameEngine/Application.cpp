@@ -59,6 +59,61 @@ void Application::initWindow(std::string_view name, uint32_t width, uint32_t hei
 
 void Application::initGui()
 {
+
+	vk::AttachmentDescription imguiAttachment{};
+	imguiAttachment
+		.setFormat(swapchainFormat)
+		.setSamples(vk::SampleCountFlagBits::e1)
+		.setLoadOp(vk::AttachmentLoadOp::eLoad)
+		.setStoreOp(vk::AttachmentStoreOp::eStore)
+		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+		.setInitialLayout(vk::ImageLayout::eColorAttachmentOptimal)
+		.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+
+	vk::AttachmentReference imguiColourAttachment{};
+	imguiColourAttachment
+		.setAttachment(0)
+		.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+
+	vk::SubpassDescription imguiSupass{};
+	imguiSupass
+		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
+		.setColorAttachments(imguiColourAttachment);
+		
+	vk::SubpassDependency imguiSubpassDependency{};
+	imguiSubpassDependency
+		.setSrcSubpass(VK_SUBPASS_EXTERNAL)
+		.setDstSubpass(0)
+		.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
+		.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
+		//.setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite)
+		.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+
+	vk::RenderPassCreateInfo imguiInfo{};
+	imguiInfo
+		.setAttachments(imguiAttachment)
+		.setSubpasses(imguiSupass)
+		.setDependencies(imguiSubpassDependency);
+
+	imguiRenderPass = state.device.createRenderPass(imguiInfo);
+	ENGINE_ASSERT(imguiRenderPass != vk::RenderPass{}, "Failed to create imgui render pass");
+
+	imguiCommandBuffers = CommandBuffer(state, swapChainFramebuffers.size());
+
+	imguiFramebuffers.resize(swapChainFramebuffers.size());
+	for (auto i = 0; i < swapChainFramebuffers.size(); i++)
+	{
+		vk::FramebufferCreateInfo imguiFrameBufferInfo{};
+		imguiFrameBufferInfo
+			.setRenderPass(imguiRenderPass)
+			.setAttachments(swapchainImages[i].view)
+			.setWidth(swapchainExtent.width)
+			.setHeight(swapchainExtent.height)
+			.setLayers(1);
+
+		imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
+	}
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
@@ -87,7 +142,7 @@ void Application::initGui()
 	if (err < 0)
 		abort();
 	};
-	ImGui_ImplVulkan_Init(&initInfo, renderPass);
+	auto sucess = ImGui_ImplVulkan_Init(&initInfo, imguiRenderPass);
 
 	state.device.resetCommandPool(state.commandPool);
 
@@ -181,7 +236,7 @@ bool Application::isDeviceSuitable(const vk::PhysicalDevice& device) const
 	auto swapChainSupport = querySwapChainSupport(device);
 	auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-	return properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
+	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
 }
 
 bool Application::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice) const
@@ -226,7 +281,7 @@ vk::PresentModeKHR Application::chooseSwapPresentMode(const std::vector<vk::Pres
 {
 	for (const auto& availablePresentMode : availablePresentModes)
 	{
-		if (availablePresentMode == vk::PresentModeKHR::eFifo)
+		if (availablePresentMode == vk::PresentModeKHR::eMailbox)
 		{
 			return availablePresentMode;
 		}
@@ -286,49 +341,10 @@ QueueFamilyIndices Application::findQueueFamiles(const vk::PhysicalDevice& devic
 	return indices;
 }
 
-
-
-
 bool Application::hasStencilComponent(vk::Format format) const
 {
 	return format == vk::Format::eD32SfloatS8Uint || format == vk::Format::eD24UnormS8Uint;
 }
-
-
-vk::CommandBuffer Application::beginSingleTimeCommand()
-{
-	vk::CommandBufferAllocateInfo allocInfo{};
-	allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
-	allocInfo.setCommandPool(state.commandPool);
-	allocInfo.setCommandBufferCount(1);
-
-	auto commandBuffers = state.device.allocateCommandBuffers(allocInfo);
-	for (const auto& commandBuffer : commandBuffers)
-	{
-		ENGINE_ASSERT(commandBuffer != vk::CommandBuffer{}, "Failed to allocate command buffer");
-	
-	} 
-	vk::CommandBufferBeginInfo beginInfo{};
-	beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-
-	commandBuffers[0].begin(beginInfo);
-	return commandBuffers[0];
-}
-
-void Application::endSingleTimeCommand(vk::CommandBuffer commandBuffer)
-{
-	commandBuffer.end();
-
-	vk::SubmitInfo submitInfo{};
-	submitInfo.setCommandBufferCount(1);
-	submitInfo.setCommandBuffers(commandBuffer);
-
-	state.graphicsQueue.submit(submitInfo, vk::Fence{});
-	state.graphicsQueue.waitIdle();
-
-	state.device.freeCommandBuffers(state.commandPool, commandBuffer);
-}
-
 
 void Application::createInstance()
 {
@@ -604,7 +620,7 @@ void Application::createRenderPass()
 	colourAttachment.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
 	colourAttachment.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
 	colourAttachment.setInitialLayout(vk::ImageLayout::eUndefined);
-	colourAttachment.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+	colourAttachment.setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
 	vk::AttachmentReference colourAttachmentRef{};
 	colourAttachmentRef.setAttachment(0);
@@ -802,8 +818,6 @@ void Application::createGraphicsPipeline()
 	pipelineInfo.setSubpass(0);
 	//pipelineInfo.setBasePipelineHandle(VK_NULL_HANDLE);
 	pipelineInfo.setBasePipelineIndex(-1);
-
-	vk::PipelineCache cache{};
 
 	auto success = vkCreateGraphicsPipelines(state.device, VK_NULL_HANDLE, 1, reinterpret_cast<const VkGraphicsPipelineCreateInfo*>(&pipelineInfo), nullptr, reinterpret_cast<VkPipeline*>(&graphicsPipeline));
 	ENGINE_ASSERT(success == VK_SUCCESS, "Failed to create graphics pipeline");
@@ -1185,6 +1199,21 @@ void Application::recreateSwapChain()
 	createDepthResources();
 	createFramebuffers();
 
+
+	imguiFramebuffers.resize(swapChainFramebuffers.size());
+	for (auto i = 0; i < swapChainFramebuffers.size(); i++)
+	{
+		vk::FramebufferCreateInfo imguiFrameBufferInfo{};
+		imguiFrameBufferInfo
+			.setRenderPass(imguiRenderPass)
+			.setAttachments(swapchainImages[i].view)
+			.setWidth(swapchainExtent.width)
+			.setHeight(swapchainExtent.height)
+			.setLayers(1);
+
+		imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
+	}
+
 	ImGui_ImplVulkan_SetMinImageCount(swapchainImages.size());
 }
 
@@ -1251,9 +1280,29 @@ void Application::drawFrame()
 			commandBuffer.setScissor(0, scissor);
 
 			commandBuffer.drawIndexed(6, 1, 0, 0, 0);
-			auto drawData = ImGui::GetDrawData();
-			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer, graphicsPipeline);
+			commandBuffer.endRenderPass();
+		});
 
+	imguiCommandBuffers.record(currentFrame, imageIndex,
+		[&](vk::CommandBuffer commandBuffer)
+		{
+			vk::ClearValue clearColour;
+			clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });
+
+			auto clearValues = { clearColour };
+
+			vk::RenderPassBeginInfo imguiRenderPassInfo{};
+			imguiRenderPassInfo
+				.setRenderPass(imguiRenderPass)
+				.setFramebuffer(imguiFramebuffers[imageIndex])
+				.setRenderArea(vk::Rect2D({ 0, 0 }, swapchainExtent))
+				.setClearValues(clearValues);
+
+			commandBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
+
+
+			auto drawData = ImGui::GetDrawData();
+			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
 
 			commandBuffer.endRenderPass();
 
@@ -1261,15 +1310,15 @@ void Application::drawFrame()
 
 	vk::SubmitInfo submitInfo{};
 	
-	vk::Semaphore waitSemaphore[] = { imageAvailableSemaphores[currentFrame]};
+	auto waitSemaphore = { imageAvailableSemaphores[currentFrame]};
 
 	vk::PipelineStageFlags waitStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
-	submitInfo.setWaitSemaphoreCount(1);
-	submitInfo.setWaitSemaphores(imageAvailableSemaphores[currentFrame]);
+	submitInfo.setWaitSemaphores(waitSemaphore);
 	submitInfo.setWaitDstStageMask(waitStages);
-	//submitInfo.setCommandBufferCount(1);
-	submitInfo.setCommandBuffers(commandBuffer);
+
+	auto commandBuffers = { commandBuffer, imguiCommandBuffers[currentFrame] };
+	submitInfo.setCommandBuffers(commandBuffers);
 	
 	//submitInfo.setSignalSemaphoreCount(1);
 	submitInfo.setSignalSemaphores(renderFinishedSemaphores[currentFrame]);
@@ -1358,12 +1407,24 @@ std::vector<Image> Application::getSwapchainImages(vk::SwapchainKHR swapchain)
 	return swapchainImages;
 }
 
-void Application::cleanup()
+void Application::destroyUi()
 {
+	for (auto framebuffer : imguiFramebuffers)
+	{
+		state.device.destroyFramebuffer(framebuffer);
+	}
+
+	state.device.destroyDescriptorPool(imguiPool);
+	state.device.destroyRenderPass(imguiRenderPass);
 
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
+
+}
+void Application::cleanup()
+{
+	destroyUi();
 
 
 	cleanupSwapchain();
@@ -1378,8 +1439,7 @@ void Application::cleanup()
 		state.device.destroySemaphore(renderFinishedSemaphores[i]);
 		state.device.destroySemaphore(imageAvailableSemaphores[i]);
 	}
-	state.device.destroyDescriptorPool(descriptorPool/*, state.allocator*/);
-	state.device.destroyDescriptorPool(imguiPool/*, state.allocator*/);
+	state.device.destroyDescriptorPool(descriptorPool);
 	state.device.destroyCommandPool(state.commandPool);
 	
 	vertexBuffer.destroy();

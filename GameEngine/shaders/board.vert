@@ -22,7 +22,7 @@ void main()
 	vec3 corners[4] = vec3[4](vec3(-1.0, 1.0, 0.0), vec3(1.0, 1.0, 0.0), vec3(1.0, -1.0, 0.0), vec3(-1.0, -1.0, 0.0));
 	vec2 uv[4] = vec2[4](vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0));
 	vec3 pos = corners[gl_VertexIndex];
-	//pos *= 0.5;
+	pos *= 0.5;
 	gl_Position = vec4(pos, 1);
 	fragTex = uv[gl_VertexIndex];
 }
