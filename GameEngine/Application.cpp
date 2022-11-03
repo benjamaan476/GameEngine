@@ -201,17 +201,9 @@ void Application::mainLoop()
 
 			ImGui::Begin("Hello, world!", &show_demo_window);                          // Create a window called "Hello, world!" and append into it.
 
-			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-			ImGui::Checkbox("Another Window", &show_another_window);
-
-			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-			ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-				counter++;
-			ImGui::SameLine();
-			ImGui::Text("counter = %d", counter);
+			ImGui::ColorEdit4("Primary Colour", glm::value_ptr(boardProperties.primaryColour));
+			ImGui::ColorEdit4("Secondary Colour", glm::value_ptr(boardProperties.secondaryColour));
+			ImGui::SliderInt2("Board Size", glm::value_ptr(boardProperties.size), 0, 20);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::End();
@@ -671,16 +663,21 @@ void Application::createDescriptorSetLayout()
 	uboLayoutBinding.setDescriptorCount(1);
 	uboLayoutBinding.setDescriptorType(vk::DescriptorType::eUniformBuffer);
 	uboLayoutBinding.setStageFlags(vk::ShaderStageFlagBits::eVertex);
-	//uboLayoutBinding.setPImmutableSamplers(nullptr);
 
 	vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
 	samplerLayoutBinding.setBinding(1);
 	samplerLayoutBinding.setDescriptorCount(1);
 	samplerLayoutBinding.setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
 	samplerLayoutBinding.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-	//samplerLayoutBinding.setImmutableSamplers(nullptr);
 
-	auto bindings = { uboLayoutBinding, samplerLayoutBinding };
+	vk::DescriptorSetLayoutBinding fragmentUboLayoutBinding{};
+	fragmentUboLayoutBinding
+		.setBinding(2)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+	auto bindings = { uboLayoutBinding, samplerLayoutBinding, fragmentUboLayoutBinding };
 	vk::DescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.setBindings(bindings);
 
@@ -1025,6 +1022,7 @@ void Application::createUniformBuffers()
 	vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
 
 	uboBuffers.resize(MaxFramesInFlight);
+	fragmentUboBuffers.resize(MaxFramesInFlight);
 	BufferProperties properties =
 	{
 		.size = bufferSize,
@@ -1035,6 +1033,7 @@ void Application::createUniformBuffers()
 	for (auto i = 0; i < MaxFramesInFlight; i++)
 	{
 		uboBuffers[i] = Buffer(state, properties);
+		fragmentUboBuffers[i] = Buffer(state, properties);
 	}
 }
 
@@ -1099,37 +1098,47 @@ void Application::createDescriptorSets()
 	for (auto i = 0; i < MaxFramesInFlight; i++)
 	{
 		vk::DescriptorBufferInfo bufferInfo{};
-		bufferInfo.setBuffer(uboBuffers[i].buffer);
-		bufferInfo.setOffset(0);
-		bufferInfo.setRange(sizeof(UniformBufferObject));
+		bufferInfo
+			.setBuffer(uboBuffers[i].buffer)
+			.setOffset(0)
+			.setRange(sizeof(UniformBufferObject));
+
+		vk::WriteDescriptorSet descriptorWrite{};
+		descriptorWrite
+			.setDstSet(descriptorSets[i])
+			.setDstBinding(0)
+			.setDstArrayElement(0)
+			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+			.setBufferInfo(bufferInfo);
+		
+		vk::DescriptorBufferInfo fragmentBufferInfo{};
+		fragmentBufferInfo
+			.setBuffer(fragmentUboBuffers[i].buffer)
+			.setOffset(0)
+			.setRange(sizeof(BoardProperties));
+
+		vk::WriteDescriptorSet fragmentDescriptorWrite{};
+		fragmentDescriptorWrite
+			.setDstSet(descriptorSets[i])
+			.setDstBinding(2)
+			.setDstArrayElement(0)
+			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+			.setBufferInfo(fragmentBufferInfo);
 
 		vk::DescriptorImageInfo imageInfo{};
 		imageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 		imageInfo.setImageView(textureImage.view);
 		imageInfo.setSampler(textureSampler);
 
-		vk::WriteDescriptorSet descriptorWrite{};
-		descriptorWrite.setDstSet(descriptorSets[i]);
-		descriptorWrite.setDstBinding(0);
-		descriptorWrite.setDstArrayElement(0);
-		descriptorWrite.setDescriptorType(vk::DescriptorType::eUniformBuffer);
-		descriptorWrite.setBufferInfo(bufferInfo);
-		//descriptorWrite.setImageInfo(nullptr);
-		//descriptorWrite.setTexelBufferView(nullptr);
-		//descriptorWrite.setDescriptorCount(1);
-		
 		vk::WriteDescriptorSet imageDescriptorWrite{};
 		imageDescriptorWrite.setDstSet(descriptorSets[i]);
 		imageDescriptorWrite.setDstBinding(1);
 		imageDescriptorWrite.setDstArrayElement(0);
 		imageDescriptorWrite.setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
-		//imageDescriptorWrite.setBufferInfo(bufferInfo);
-		//imageDescriptorWrite.setTexelBufferView(nullptr);
 		imageDescriptorWrite.setImageInfo(imageInfo);
-		//imageDescriptorWrite.setDescriptorCount(1);
 		
-		auto descriptorSets = { descriptorWrite, imageDescriptorWrite };
-		state.device.updateDescriptorSets(descriptorSets, nullptr);
+		auto descriptorSet = { descriptorWrite, imageDescriptorWrite, fragmentDescriptorWrite };
+		state.device.updateDescriptorSets(descriptorSet, nullptr);
 	}
 }
 
@@ -1180,6 +1189,12 @@ void Application::updateUniformBuffer(uint32_t currentImage)
 	std::memcpy(data, &ubo, sizeof(ubo));
 
 	state.device.unmapMemory(uboBuffers[currentImage].memory);
+
+	auto fragData = state.device.mapMemory(fragmentUboBuffers[currentImage].memory, 0, sizeof(boardProperties));
+
+	std::memcpy(fragData, &boardProperties, sizeof(boardProperties));
+
+	state.device.unmapMemory(fragmentUboBuffers[currentImage].memory);
 }
 
 void Application::recreateSwapChain()
@@ -1426,7 +1441,6 @@ void Application::cleanup()
 {
 	destroyUi();
 
-
 	cleanupSwapchain();
 	state.device.destroySampler(textureSampler);
 
@@ -1447,6 +1461,7 @@ void Application::cleanup()
 	for (int i = 0; i < MaxFramesInFlight; i++)
 	{
 		uboBuffers[i].destroy();
+		fragmentUboBuffers[i].destroy();
 	}
 
 	state.device.destroyDescriptorSetLayout(descriptorSetLayout);

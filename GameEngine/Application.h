@@ -14,6 +14,7 @@
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <chrono>
 
@@ -236,6 +237,7 @@ private:
 	Buffer vertexBuffer;
 	Buffer indexBuffer;
 	std::vector<Buffer> uboBuffers;
+	std::vector<Buffer> fragmentUboBuffers;
 
 	Image textureImage{};
 	vk::Sampler textureSampler;
@@ -276,6 +278,13 @@ private:
 		glm::mat4 view;
 		glm::mat4 proj;
 	};
+
+	struct BoardProperties
+	{
+		glm::vec4 primaryColour{1.f, 1.f, 1.f, 1.f};
+		glm::vec4 secondaryColour{0.f, 0.f, 0.f, 1.f};
+		glm::ivec2 size{8, 8};
+	} boardProperties;
 
 	const std::vector<const char*> validationLayers =
 	{
