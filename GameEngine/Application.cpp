@@ -182,7 +182,7 @@ void Application::initVulkan()
 
 void Application::mainLoop()
 {
-	bool show_demo_window = true;
+	bool show_demo_window = false;
 	bool show_another_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 	int counter = 0;
@@ -197,10 +197,16 @@ void Application::mainLoop()
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 
-			ImGui::ShowDemoWindow(&show_demo_window);
+			if (show_demo_window)
+			{
+				ImGui::ShowDemoWindow(&show_demo_window);
+			}
+			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
-			ImGui::Begin("Hello, world!", &show_demo_window);                          // Create a window called "Hello, world!" and append into it.
-
+			if(ImGui::Button("Show debug window"))
+			{
+				show_demo_window = !show_demo_window;
+			}
 			ImGui::ColorEdit4("Primary Colour", glm::value_ptr(boardProperties.primaryColour));
 			ImGui::ColorEdit4("Secondary Colour", glm::value_ptr(boardProperties.secondaryColour));
 			ImGui::SliderInt2("Board Size", glm::value_ptr(boardProperties.size), 0, 20);
@@ -1471,12 +1477,9 @@ void Application::cleanup()
 	state.device.destroyShaderModule(fragShaderModule);
 	state.device.destroyShaderModule(vertShaderModule);
 
-	state.device.destroy(/*state.allocator*/);
 	state.instance.destroySurfaceKHR(surface);
 	if (enableValidationLayers)
 	{
-		auto allocator = (const VkAllocationCallbacks)state.allocator;
-
 		DestroyDebugUtilsMessengerEXT(state.instance, debugMessenger, nullptr);
 		//DestroyDebugUtilsMessengerEXT(state.instance, debugMessenger, &allocator);
 	}
