@@ -131,7 +131,7 @@ void Application::initGui()
 	initInfo.DescriptorPool = imguiPool;
 	initInfo.Subpass = 0;
 	initInfo.MinImageCount = 2;
-	initInfo.ImageCount = swapchainImages.size();
+	initInfo.ImageCount = (uint32_t)swapchainImages.size();
 	initInfo.Allocator = nullptr;
 	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 	initInfo.CheckVkResultFn = [](VkResult err)
@@ -211,6 +211,18 @@ void Application::mainLoop()
 			ImGui::ColorEdit4("Secondary Colour", glm::value_ptr(boardProperties.secondaryColour));
 			ImGui::SliderInt2("Board Size", glm::value_ptr(boardProperties.size), 0, 20);
 
+			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+			ImGui::Checkbox("Another Window", &show_another_window);
+
+			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+			ImGui::ColorEdit3("clear color", (float*)&clearColor); // Edit 3 floats representing a color
+
+			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+				counter++;
+			ImGui::SameLine();
+			ImGui::Text("counter = %d", counter);
+
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::End();
 
@@ -234,7 +246,7 @@ bool Application::isDeviceSuitable(const vk::PhysicalDevice& device) const
 	auto swapChainSupport = querySwapChainSupport(device);
 	auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
+	return properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
 }
 
 bool Application::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice) const
@@ -279,7 +291,7 @@ vk::PresentModeKHR Application::chooseSwapPresentMode(const std::vector<vk::Pres
 {
 	for (const auto& availablePresentMode : availablePresentModes)
 	{
-		if (availablePresentMode == vk::PresentModeKHR::eMailbox)
+		if (availablePresentMode == vk::PresentModeKHR::eFifo)
 		{
 			return availablePresentMode;
 		}
@@ -665,25 +677,27 @@ void Application::createRenderPass()
 void Application::createDescriptorSetLayout()
 {
 	vk::DescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.setBinding(0);
-	uboLayoutBinding.setDescriptorCount(1);
-	uboLayoutBinding.setDescriptorType(vk::DescriptorType::eUniformBuffer);
-	uboLayoutBinding.setStageFlags(vk::ShaderStageFlagBits::eVertex);
+	uboLayoutBinding
+		.setBinding(0)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+		.setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
 	vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.setBinding(1);
-	samplerLayoutBinding.setDescriptorCount(1);
-	samplerLayoutBinding.setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
-	samplerLayoutBinding.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+	samplerLayoutBinding
+		.setBinding(1)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
-	vk::DescriptorSetLayoutBinding fragmentUboLayoutBinding{};
-	fragmentUboLayoutBinding
+	vk::DescriptorSetLayoutBinding fragUboBinding{};
+	fragUboBinding
 		.setBinding(2)
 		.setDescriptorCount(1)
 		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
 		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
-	auto bindings = { uboLayoutBinding, samplerLayoutBinding, fragmentUboLayoutBinding };
+	auto bindings = { uboLayoutBinding, samplerLayoutBinding, fragUboBinding };
 	vk::DescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.setBindings(bindings);
 
@@ -1071,12 +1085,12 @@ name.setDescriptorCount(descriptorCount)
 	vk::DescriptorPoolCreateInfo poolInfo{};
 	//poolInfo.setPoolSizeCount(1);
 	poolInfo.setPoolSizes(pools);
-	poolInfo.setMaxSets(descriptorCount * pools.size());
+	poolInfo.setMaxSets(descriptorCount * (uint32_t)pools.size());
 	poolInfo.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 	imguiPool = state.device.createDescriptorPool(poolInfo);
 	ENGINE_ASSERT(imguiPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
 
-		auto descriptorPools = { uniform, combinedSample };
+	auto descriptorPools = { uniform, combinedSample };
 
 	vk::DescriptorPoolCreateInfo info{};
 	info.setPoolSizes(descriptorPools);
@@ -1136,6 +1150,13 @@ void Application::createDescriptorSets()
 		imageInfo.setImageView(textureImage.view);
 		imageInfo.setSampler(textureSampler);
 
+		vk::WriteDescriptorSet descriptorWrite{};
+		descriptorWrite.setDstSet(descriptorSets[i]);
+		descriptorWrite.setDstBinding(0);
+		descriptorWrite.setDstArrayElement(0);
+		descriptorWrite.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+		descriptorWrite.setBufferInfo(bufferInfo);
+		
 		vk::WriteDescriptorSet imageDescriptorWrite{};
 		imageDescriptorWrite.setDstSet(descriptorSets[i]);
 		imageDescriptorWrite.setDstBinding(1);
@@ -1235,7 +1256,7 @@ void Application::recreateSwapChain()
 		imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
 	}
 
-	ImGui_ImplVulkan_SetMinImageCount(swapchainImages.size());
+	ImGui_ImplVulkan_SetMinImageCount((uint32_t)swapchainImages.size());
 }
 
 void Application::drawFrame() 
@@ -1261,6 +1282,7 @@ void Application::drawFrame()
 
 	auto commandBuffer = commandBuffers[currentFrame];
 
+
 	commandBuffers.record(currentFrame, imageIndex,
 		[&](vk::CommandBuffer commandBuffer) {
 			vk::RenderPassBeginInfo renderPassInfo{};
@@ -1269,7 +1291,7 @@ void Application::drawFrame()
 			renderPassInfo.setRenderArea(vk::Rect2D({ 0, 0 }, swapchainExtent));
 
 			vk::ClearValue clearColour;
-			clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });
+			clearColour.color.setFloat32({ clearColor.x, clearColor.y, clearColor.z, clearColor.w });
 			vk::ClearValue clearDepth;
 			clearDepth.depthStencil = { {1.f, 0} };
 

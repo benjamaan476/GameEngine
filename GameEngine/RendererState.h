@@ -26,9 +26,9 @@ struct RendererState
 			{
 				return format;
 			}
-
-			ENGINE_ASSERT(false, "Failed to find supported format");
 		}
+			ENGINE_ASSERT(false, "Failed to find supported format");
+			return candidates.front();
 	}
 
 	vk::Format findDepthFormat()

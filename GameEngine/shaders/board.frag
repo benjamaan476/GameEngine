@@ -10,6 +10,7 @@ layout(binding = 2) uniform UniformBufferObject
 	ivec2 size;
 } boardProperties;
 
+
 void main()
 {
 	vec2 pos = floor((fragTex * boardProperties.size));

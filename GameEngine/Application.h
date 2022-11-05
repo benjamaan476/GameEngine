@@ -296,6 +296,9 @@ private:
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
+	ImVec4 clearColor = { 0.f, 0.f, 0.f, 1.f };
+
+
 #ifdef NDEBUG
 	const bool enableValidationLayers = false;
 #else
