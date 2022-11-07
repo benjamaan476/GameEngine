@@ -1150,13 +1150,6 @@ void Application::createDescriptorSets()
 		imageInfo.setImageView(textureImage.view);
 		imageInfo.setSampler(textureSampler);
 
-		vk::WriteDescriptorSet descriptorWrite{};
-		descriptorWrite.setDstSet(descriptorSets[i]);
-		descriptorWrite.setDstBinding(0);
-		descriptorWrite.setDstArrayElement(0);
-		descriptorWrite.setDescriptorType(vk::DescriptorType::eUniformBuffer);
-		descriptorWrite.setBufferInfo(bufferInfo);
-		
 		vk::WriteDescriptorSet imageDescriptorWrite{};
 		imageDescriptorWrite.setDstSet(descriptorSets[i]);
 		imageDescriptorWrite.setDstBinding(1);
