@@ -19,6 +19,8 @@ public:
 	vk::Image image{};
 	vk::DeviceMemory memory{};
 	vk::ImageView view{};
+	uint32_t width{};
+	uint32_t height{};
 
 
 public:
@@ -79,8 +81,6 @@ public:
 
 protected:
 	RendererState state{};
-	uint32_t width{};
-	uint32_t height{};
 	ImageProperties properties{};
 	void createImage();
 	void createMemory();

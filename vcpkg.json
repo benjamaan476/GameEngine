@@ -12,7 +12,8 @@
       "default-features": false,
       "features": [
         "vulkan-binding",
-        "glfw-binding"
+        "glfw-binding",
+        "docking-experimental"
       ]
     },
     "stb"

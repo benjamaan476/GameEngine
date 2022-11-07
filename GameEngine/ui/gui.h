@@ -6,6 +6,9 @@
 #include <imgui.h>
 #include <filesystem>
 
+
+class GuiImpl;
+
 // Helper to check if a class is a vector
 template<typename T, typename = void>
 struct is_vector : std::false_type {};
@@ -165,6 +168,9 @@ public:
 
 private:
 	Gui() = default;
-	//GuiImpl* _wrapper = nullptr;
+	GuiImpl* _wrapper = nullptr;
 
 };
+
+ENUM_CLASS_OPERATORS(Gui::WindowFlags)
+ENUM_CLASS_OPERATORS(Gui::TextFlags)

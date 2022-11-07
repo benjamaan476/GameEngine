@@ -149,7 +149,7 @@ void Application::initGui()
 	OneTimeCommandBuffer commnad{ state,
 		[](vk::CommandBuffer buffer)
 		{
-					ImGui_ImplVulkan_CreateFontsTexture(buffer);
+			ImGui_ImplVulkan_CreateFontsTexture(buffer);
 		}};
 
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
