@@ -10,7 +10,7 @@ public:
 	CommandBuffer(RendererState state, size_t bufferCount);
 
 
-	void record(uint32_t bufferIndex, uint32_t imageIndex, std::function<void(vk::CommandBuffer)> recordBuffer);
+	void record(uint32_t bufferIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer);
 
 
 	vk::CommandBuffer operator[] (uint32_t index)

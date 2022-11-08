@@ -1276,8 +1276,8 @@ void Application::drawFrame()
 	auto commandBuffer = commandBuffers[currentFrame];
 
 
-	commandBuffers.record(currentFrame, imageIndex,
-		[&](vk::CommandBuffer commandBuffer) {
+	commandBuffers.record(currentFrame,
+		[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex) {
 			vk::RenderPassBeginInfo renderPassInfo{};
 			renderPassInfo.setRenderPass(renderPass);
 			renderPassInfo.setFramebuffer(swapChainFramebuffers[imageIndex]);
@@ -1319,8 +1319,8 @@ void Application::drawFrame()
 			commandBuffer.endRenderPass();
 		});
 
-	imguiCommandBuffers.record(currentFrame, imageIndex,
-		[&](vk::CommandBuffer commandBuffer)
+	imguiCommandBuffers.record(currentFrame,
+		[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex)
 		{
 			vk::ClearValue clearColour;
 			clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });

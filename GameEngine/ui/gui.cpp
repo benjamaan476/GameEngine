@@ -1,6 +1,8 @@
 #include "gui.h"
 
 #include <imgui.h>
+#include <imgui_impl_vulkan.h>
+
 #include <span>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -564,8 +566,6 @@ struct foobar : std::false_type
 template<typename T>
 bool GuiImpl::addScalarVar(const std::string& label, T& var, T minVal, T maxVal, float step, bool sameLine, const char* displayFormat)
 {
-	inline constexpr bool always_false = false;
-
 	if constexpr (std::is_same<T, int32_t>::value)
 	{
 		return addScalarVarHelper(label, var, ImGuiDataType_S32, minVal, maxVal, step, sameLine, displayFormat);
@@ -804,4 +804,189 @@ void GuiImpl::addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, flo
 Gui::~Gui()
 {
 	ImGui::DestroyContext();
+}
+
+Gui::UniquePtr Gui::create(uint32_t width, uint32_t height, float scaleFactor)
+{
+	auto ui = std::unique_ptr<Gui>(new Gui);
+	ui->_wrapper = new GuiImpl;
+	ui->_wrapper->init(ui.get(), scaleFactor);
+	ui->onWindowResize(width, height);
+	return ui;
+}
+
+float4 Gui::pickUniqueColour(const std::string& key)
+{
+	union hashedValue
+	{
+		size_t t;
+		int32_t i[2];
+	} colour{};
+
+	colour.t = std::hash<std::string>()(key);
+
+	return float4(colour.i[0] % 1000 / 2000.f, colour.i[1] % 1000 / 2000.f, (colour.i[0] * colour.i[1]) % 1000 / 2000.f, 1.f);
+}
+
+void Gui::begin()
+{
+	ImGui::NewFrame();
+}
+
+void Gui::setGlobalScaling(float scale)
+{
+	auto& io = ImGui::GetIO();
+	io.FontGlobalScale = scale;
+	ImGui::GetStyle().ScaleAllSizes(scale);
+}
+
+void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, vk::Framebuffer framebuffer, vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex)
+{
+	while (_wrapper->_groupStackSize)
+	{
+		_wrapper->endGroup();
+	}
+
+	ImGui::Render();
+
+	buffer.record(currentFrame,
+		[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex)
+		{
+			vk::ClearValue clearColour;
+			clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });
+
+			auto clearValues = { clearColour };
+
+			vk::RenderPassBeginInfo imguiRenderPassInfo{};
+			imguiRenderPassInfo
+				.setRenderPass(renderPass)
+				.setFramebuffer(framebuffer)
+				.setRenderArea(vk::Rect2D({ 0, 0 }, extent))
+				.setClearValues(clearValues);
+
+			commandBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
+
+
+			auto drawData = ImGui::GetDrawData();
+			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
+
+			commandBuffer.endRenderPass();
+
+		});
+
+	_wrapper->_groupStackSize = 0;
+	_wrapper->_images.clear();
+}
+
+void Gui::onWindowResize(uint32_t width, uint32_t height)
+{
+	auto& io = ImGui::GetIO();
+	io.DisplaySize.x = (float)width;
+	io.DisplaySize.y = (float)height;
+}
+
+Gui::Group Gui::Widget::group(const std::string& label, bool beginExpanded)
+{
+	return Group(_gui, label, beginExpanded);
+}
+
+void Gui::Widget::indent(float i)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->indent(i);
+	}
+}
+
+void Gui::Widget::separator(uint32_t count)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->addSeparator(count);
+	}
+}
+
+void Gui::Widget::dummy(const std::string& label, const float2& size, bool sameLine)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->addDummyItem(label, size, sameLine);
+	}
+}
+
+void Gui::Widget::rect(const float2& size, const float4& colour, bool filled, bool sameLine)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->addRect(size, colour, filled, sameLine);
+	}
+}
+bool Gui::Widget::dropdown(const std::string& label, const DropdownList& values, uint32_t& var, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addDropdown(label, values, var, sameLine) : false;
+}
+
+bool Gui::Widget::button(const std::string& label, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addButton(label, sameLine) : false;
+}
+
+bool Gui::Widget::radioButtons(const RadioButtonGroup& buttons, uint32_t& activeID)
+{
+	return _gui ? _gui->_wrapper->addRadioButtons(buttons, activeID) : false;
+}
+
+bool Gui::Widget::direction(const std::string& label, float3& direction)
+{
+	return _gui ? _gui->_wrapper->addDirection(label, direction) : false;
+}
+
+template<>
+bool Gui::Widget::checkbox<bool>(const std::string& label, bool& var, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addCheckbox(label, var, sameLine) : false;
+}
+
+template<>
+bool Gui::Widget::checkbox<int>(const std::string& label, int& var, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addCheckbox(label, var, sameLine) : false;
+}
+
+template<typename T>
+bool Gui::Widget::checkbox(const std::string& label, T& var, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addBoolVecVar(label, var, sameLine) : false;
+}
+
+bool Gui::Widget::dragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payloadString)
+{
+	return _gui ? _gui->_wrapper->addDragDropSource(label, dataLabel, payloadString) : false;
+}
+
+bool Gui::Widget::dragDropDestination(const std::string& label, std::string& payloadString)
+{
+	return _gui ? _gui->_wrapper->addDragDropDest(label, payloadString) : false;
+}
+
+template <typename T, std::enable_if_t<!is_vector<T>::value, bool>>
+bool Gui::Widget::var(const std::string& label, T& var, T minValue, T maxValue, T step, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addScalarVar(label, var, minValue, maxValue, step, sameLine) : false;
+}
+
+#define ADD_SCALAR_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, TypeName minValue, TypeName maxValue, TypeName step, bool sameLine);
+
+ADD_SCALAR_VAR_TYPE(int32_t)
+ADD_SCALAR_VAR_TYPE(uint32_t)
+ADD_SCALAR_VAR_TYPE(uint64_t)
+ADD_SCALAR_VAR_TYPE(float_t)
+ADD_SCALAR_VAR_TYPE(double_t)
+
+#undef ADD_SCALAR_VAR_TYPE
+
+template<typename T, std::enable_if_t<!is_vector<T>::value, bool>>
+bool Gui::Widget::slider(const std::string& label, T& var, T minValue, T maxValue, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addScalarSlider(label, var, minValue, maxValue, sameLine) : false;
 }

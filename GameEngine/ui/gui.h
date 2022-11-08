@@ -2,6 +2,7 @@
 
 #include "../EngineCore.h"
 #include "../Image.h"
+#include "../CommandBuffer.h"
 
 #include <imgui.h>
 #include <filesystem>
@@ -79,10 +80,11 @@ public:
 		bool dropdown(const std::string& label, const DropdownList& values, uint32_t& var, bool sameLine = false);
 		bool button(const std::string& label, bool sameLine = false);
 		bool radioButtons(const RadioButtonGroup& buttons, uint32_t& activeId);
-		bool direction(const std::string& label, const float3& direction);
-		bool checkbox(const std::string& label, bool& var, bool sameLine = false);
-		bool dragDropSource(const std::string label, const std::string& dataLabel, const std::string& payload);
-		bool dragDropDestination(const std::string& dataLabel, const std::string& payload);
+		bool direction(const std::string& label, float3& direction);
+		template<typename T>
+		bool checkbox(const std::string& label, T& var, bool sameLine = false);
+		bool dragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payload);
+		bool dragDropDestination(const std::string& dataLabel, std::string& payload);
 		void text(const std::string& text, bool sameLine = false);
 		void textWrapped(const std::string& text);
 		bool textbox(const std::string& label, std::string& text, TextFlags flags = TextFlags::Empty);
@@ -162,7 +164,7 @@ public:
 	ImFont* getFont(std::string f = "");
 
 	void begin();
-
+	void render(CommandBuffer buffer, vk::RenderPass renderPass, vk::Framebuffer framebuffer, vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex);
 	static void setGlobalScaling(float scale);
 	void onWindowResize(uint32_t width, uint32_t height);
 

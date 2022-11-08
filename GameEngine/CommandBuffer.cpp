@@ -18,7 +18,7 @@ CommandBuffer::CommandBuffer(RendererState state, size_t bufferCount)
 
 }
 
-void CommandBuffer::record(uint32_t bufferIndex, uint32_t imageIndex, std::function<void(vk::CommandBuffer)> recordBuffer)
+void CommandBuffer::record(uint32_t bufferIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer)
 {
 	auto& commandBuffer = commandBuffers[bufferIndex];
 
@@ -28,7 +28,7 @@ void CommandBuffer::record(uint32_t bufferIndex, uint32_t imageIndex, std::funct
 	beginInfo.setPInheritanceInfo(nullptr);
 	commandBuffer.begin(beginInfo);
 
-	recordBuffer(commandBuffer);
+	recordBuffer(commandBuffer, 0);
 
 	commandBuffer.end();
 }
