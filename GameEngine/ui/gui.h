@@ -81,8 +81,7 @@ public:
 		bool button(const std::string& label, bool sameLine = false);
 		bool radioButtons(const RadioButtonGroup& buttons, uint32_t& activeId);
 		bool direction(const std::string& label, float3& direction);
-		template<typename T>
-		bool checkbox(const std::string& label, T& var, bool sameLine = false);
+		bool checkbox(const std::string& label, auto& var, bool sameLine = false);
 		bool dragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payload);
 		bool dragDropDestination(const std::string& dataLabel, std::string& payload);
 		void text(const std::string& text, bool sameLine = false);
@@ -104,10 +103,10 @@ public:
 		bool slider(const std::string& label, T& var, T minValue = std::numeric_limits<T>::lowest() / 2, T maxValue = std::numeric_limits<T>::max() / 2, bool sameLine = false);
 
 		template<typename T, std::enable_if_t<is_vector<T>::value, bool> = true>
-		bool var(const std::string& label, T& var, T minValue = std::numeric_limits<T>::lowest(), T maxValue = std::numeric_limits<T>::max(), T step = std::is_floating_point_v<T> ? 0.001f : 1.f, bool sameLine = false);
+		bool var(const std::string& label, T& var, typename T::value_type minValue = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxValue = std::numeric_limits<typename T::value_type>::max(), typename T::value_type step = std::is_floating_point_v<T> ? 0.001f : 1.f, bool sameLine = false);
 
 		template<typename T, std::enable_if_t<is_vector<T>::value, bool> = true>
-		bool slider(const std::string& label, T& var, T minValue = std::numeric_limits<T>::lowest() / 2, T maxValue = std::numeric_limits<T>::max() / 2, bool sameLine = false);
+		bool slider(const std::string& label, T& var, typename T::value_type minValue = std::numeric_limits<typename T::value_type>::lowest() / 2, typename T::value_type maxValue = std::numeric_limits<typename T::value_type>::max() / 2, bool sameLine = false);
 
 
 		template<typename MatrixType>

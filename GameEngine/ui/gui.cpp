@@ -941,8 +941,7 @@ bool Gui::Widget::direction(const std::string& label, float3& direction)
 	return _gui ? _gui->_wrapper->addDirection(label, direction) : false;
 }
 
-template<>
-bool Gui::Widget::checkbox<bool>(const std::string& label, bool& var, bool sameLine)
+bool Gui::Widget::checkbox(const std::string& label, auto& var, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addCheckbox(label, var, sameLine) : false;
 }
@@ -953,11 +952,11 @@ bool Gui::Widget::checkbox<int>(const std::string& label, int& var, bool sameLin
 	return _gui ? _gui->_wrapper->addCheckbox(label, var, sameLine) : false;
 }
 
-template<typename T>
-bool Gui::Widget::checkbox(const std::string& label, T& var, bool sameLine)
-{
-	return _gui ? _gui->_wrapper->addBoolVecVar(label, var, sameLine) : false;
-}
+//template<typename T>
+//bool Gui::Widget::checkbox(const std::string& label, T& var, bool sameLine)
+//{
+//	return _gui ? _gui->_wrapper->addBoolVecVar(label, var, sameLine) : false;
+//}
 
 bool Gui::Widget::dragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payloadString)
 {
@@ -989,4 +988,90 @@ template<typename T, std::enable_if_t<!is_vector<T>::value, bool>>
 bool Gui::Widget::slider(const std::string& label, T& var, T minValue, T maxValue, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addScalarSlider(label, var, minValue, maxValue, sameLine) : false;
+}
+
+#define ADD_SCALAR_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(const std::string& label, TypeName& var, TypeName minValue, TypeName maxValue, bool sameLine);
+
+ADD_SCALAR_SLIDER_TYPE(int32_t)
+ADD_SCALAR_SLIDER_TYPE(uint32_t)
+ADD_SCALAR_SLIDER_TYPE(uint64_t)
+ADD_SCALAR_SLIDER_TYPE(float_t)
+ADD_SCALAR_SLIDER_TYPE(double_t)
+
+#undef ADD_SCALAR_SLIDER_TYPE
+
+template<typename T, std::enable_if_t<is_vector<T>::value, bool>>
+bool Gui::Widget::var(const std::string& label, T& var, typename T::value_type minValue, typename T::value_type maxValue, typename T::value_type step, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addVecVar(label, var, minValue, maxValue, step, sameLine) : false;
+}
+
+#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName&, typename TypeName::value_type,typename TypeName::value_type, float, bool);
+
+ADD_VEC_VAR_TYPE(float2)
+ADD_VEC_VAR_TYPE(float3)
+ADD_VEC_VAR_TYPE(float4)
+ADD_VEC_VAR_TYPE(uint2)
+
+#undef ADD_VEC_VAR_TYPE;
+
+void Gui::Widget::text(const std::string& text, bool sameLine)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->addText(text, sameLine);
+	}
+}
+
+void Gui::Widget::textWrapped(const std::string& text)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->addTextWrapped(text);
+	}
+}
+
+bool Gui::Widget::textbox(const std::string& label, std::string& text, TextFlags flags)
+{
+	return _gui ? _gui->_wrapper->addTextbox(label, text, 1, flags) : false;
+}
+
+bool Gui::Widget::textboxMultiline(const std::string& label, const std::vector<std::string>& text, std::vector<std::string>& textEntries)
+{
+	return _gui ? _gui->_wrapper->addMultiTextbox(label, text, textEntries) : false;
+}
+
+void Gui::Widget::tooltip(const std::string& text, bool sameLine)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->addTooltip(text, sameLine);
+	}
+}
+
+bool Gui::Widget::rgbColour(const std::string& label, float3& var, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addRgbColor(label, var, sameLine) : false;
+}
+
+
+bool Gui::Widget::rgbaColour(const std::string& label, float4& var, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addRgbaColor(label, var, sameLine) : false;
+}
+
+void Gui::Widget::image(const std::string& label, const Image& image, float2 size, bool maintainRatio, bool sameLine)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->addImage(label, image, size, maintainRatio, sameLine);
+	}
+}
+
+void Gui::Widget::imageButton(const std::string& label, const Image& image, float2 size, bool maintainRatio, bool sameLine )
+{
+	if (_gui)
+	{
+		_gui->_wrapper->addImageButton(label, image, size, maintainRatio, sameLine);
+	}
 }
