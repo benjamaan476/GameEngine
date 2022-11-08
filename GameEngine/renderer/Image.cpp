@@ -1,5 +1,4 @@
 #include "Image.h"
-#include "Image.h"
 
 uint32_t Image::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
 {

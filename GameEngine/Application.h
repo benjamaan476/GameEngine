@@ -1,10 +1,10 @@
 #pragma once
 #include "EngineCore.h"
-#include "RendererState.h"
+#include "renderer/RendererState.h"
 
-#include "Image.h"
-#include "Buffer.h"
-#include "CommandBuffer.h"
+#include "renderer/Image.h"
+#include "renderer/Buffer.h"
+#include "renderer/CommandBuffer.h"
 
 #include "Platform/Window.h"
 #include <optional>
@@ -215,7 +215,6 @@ private:
 
 	Window::SharedPtr window;
 
-	RendererState state{};
 	VkDebugUtilsMessengerEXT debugMessenger;
 	vk::SurfaceKHR surface;
 	vk::Format swapchainFormat;
@@ -264,8 +263,6 @@ private:
 		{ {0.5f, -0.5f, -.5f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
 		{{0.5f, 0.5f, -.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
 		{{-0.5f, 0.5f, -.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}}
-
-		
 	};
 	
 	const std::vector<uint32_t> indices =
@@ -283,9 +280,19 @@ private:
 
 	struct BoardProperties
 	{
-		glm::vec4 primaryColour{1.f, 1.f, 1.f, 1.f};
-		glm::vec4 secondaryColour{0.f, 0.f, 0.f, 1.f};
-		glm::ivec2 size{8, 8};
+		float4 primaryColour{1.f, 1.f, 1.f, 1.f};
+		float4 secondaryColour{0.f, 0.f, 0.f, 1.f};
+		int2 size{8, 8};
+
+		bool onRender(Gui* gui)
+		{
+			auto window = Gui::Window(gui, "Board Properties");
+			auto updated = false;
+			updated |= window.rgbaColour("Primary Colour", primaryColour);
+			updated |= window.rgbaColour("Secondary Colour", secondaryColour);
+			updated |= window.slider("Board Size", size, 0, 20);
+			return updated;
+		}
 	} boardProperties;
 
 	const std::vector<const char*> validationLayers =
@@ -298,7 +305,7 @@ private:
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
-	ImVec4 clearColor = { 0.f, 0.f, 0.f, 1.f };
+	float4 clearColor = { 0.f, 0.f, 0.f, 1.f };
 
 	std::unique_ptr<Gui> _gui;
 #ifdef NDEBUG

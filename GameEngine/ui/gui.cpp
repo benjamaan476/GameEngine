@@ -71,12 +71,12 @@ private:
 	bool addImageButton(const std::string& label, const Image& image, float2 size, bool maintainRatio = true, bool sameLine = false);
 
 	template<typename T>
-	bool addScalarVar(const std::string& label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), float step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
+	bool addScalarVar(const std::string& label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), T step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
 	template<typename T>
 	bool addScalarSlider(const std::string& label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), bool sameLine = false, const char* displayFormat = nullptr);
 
 	template<typename T>
-	bool addVecVar(const std::string& label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max(), float step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
+	bool addVecVar(const std::string& label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max(), typename T::value_type step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
 	template<typename T>
 	bool addVecSlider(const std::string& label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max(), bool sameLine = false, const char* displayFormat = nullptr);
 
@@ -91,6 +91,8 @@ void GuiImpl::init(Gui* gui, float scaleFactor)
 	auto& io = ImGui::GetIO();
 
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+	ImGui::StyleColorsDark();
 }
 
 void GuiImpl::compileFonts()
@@ -545,14 +547,14 @@ bool GuiImpl::addImageButton(const std::string& label, const Image& image, float
 
 
 template<typename T>
-bool addScalarVarHelper(const std::string& label, T& var, ImGuiDataType_ imguiType, T minValue, T maxValue, float step, bool sameLine, const char* displayFormat)
+bool addScalarVarHelper(const std::string& label, T& var, ImGuiDataType_ imguiType, T minValue, T maxValue, T step, bool sameLine, const char* displayFormat)
 {
 	ImGui::PushItemWidth(200);
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	auto b = ImGui::DragScalar(label.c_str(), imguiType, &var, step, &minValue, &maxValue, displayFormat);
+	auto b = ImGui::DragScalar(label.c_str(), imguiType, &var, (float)step, &minValue, &maxValue, displayFormat);
 	var = glm::clamp(var, minValue, maxValue);
 	ImGui::PopItemWidth();
 
@@ -564,7 +566,7 @@ struct foobar : std::false_type
 { };
 
 template<typename T>
-bool GuiImpl::addScalarVar(const std::string& label, T& var, T minVal, T maxVal, float step, bool sameLine, const char* displayFormat)
+bool GuiImpl::addScalarVar(const std::string& label, T& var, T minVal, T maxVal, T step, bool sameLine, const char* displayFormat)
 {
 	if constexpr (std::is_same<T, int32_t>::value)
 	{
@@ -653,14 +655,14 @@ bool GuiImpl::addScalarSlider(const std::string& label, T& var, T minVal, T maxV
 }
 
 template<typename T>
-bool addVecVarHelper(const std::string& label, T& var, ImGuiDataType_ imguiType, typename T::value_type minValue, typename T::value_type maxValue, float step, bool sameLine, const char* displayFormat)
+bool addVecVarHelper(const std::string& label, T& var, ImGuiDataType_ imguiType, typename T::value_type minValue, typename T::value_type maxValue, typename T::value_type step, bool sameLine, const char* displayFormat)
 {
 	ImGui::PushItemWidth(200);
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	auto b = ImGui::DragScalarN(label.c_str(), imguiType, glm::value_ptr(var), var.length(), step, &minValue, &maxValue, displayFormat);
+	auto b = ImGui::DragScalarN(label.c_str(), imguiType, glm::value_ptr(var), var.length(), (float)step, &minValue, &maxValue, displayFormat);
 	var = glm::clamp(var, minValue, maxValue);
 	ImGui::PopItemWidth();
 
@@ -669,7 +671,7 @@ bool addVecVarHelper(const std::string& label, T& var, ImGuiDataType_ imguiType,
 
 
 template<typename T>
-bool GuiImpl::addVecVar(const std::string& label, T& var, typename T::value_type minVal, typename T::value_type maxVal, float step, bool sameLine, const char* displayFormat)
+bool GuiImpl::addVecVar(const std::string& label, T& var, typename T::value_type minVal, typename T::value_type maxVal, typename T::value_type step, bool sameLine, const char* displayFormat)
 {
 	if constexpr (std::is_same<typename T::value_type, int32_t>::value)
 	{
@@ -719,23 +721,23 @@ bool addVecSliderHelper(const std::string& label, T& var, ImGuiDataType_ imguiTy
 template<typename T>
 bool GuiImpl::addVecSlider(const std::string& label, T& var, typename T::value_type minVal, typename T::value_type maxVal, bool sameLine, const char* displayFormat)
 {
-	if constexpr (std::is_same<T::value_type, int32_t>::value)
+	if constexpr (std::is_same<typename T::value_type, int32_t>::value)
 	{
 		return addVecSliderHelper(label, var, ImGuiDataType_S32, minVal, maxVal, sameLine, displayFormat);
 	}
-	else if constexpr (std::is_same<T::value_type, uint32_t>::value)
+	else if constexpr (std::is_same<typename T::value_type, uint32_t>::value)
 	{
 		return addVecSliderHelper(label, var, ImGuiDataType_U32, minVal, maxVal, sameLine, displayFormat);
 	}
-	else if constexpr (std::is_same<T::value_type, int64_t>::value)
+	else if constexpr (std::is_same<typename T::value_type, int64_t>::value)
 	{
 		return addVecSliderHelper(label, var, ImGuiDataType_S64, minVal, maxVal, sameLine, displayFormat);
 	}
-	else if constexpr (std::is_same<T::value_type, uint64_t>::value)
+	else if constexpr (std::is_same<typename T::value_type, uint64_t>::value)
 	{
 		return addVecSliderHelper(label, var, ImGuiDataType_U64, minVal, maxVal, sameLine, displayFormat);
 	}
-	else if constexpr (std::is_same<T::value_type, float>::value)
+	else if constexpr (std::is_same<typename T::value_type, float>::value)
 	{
 		return addVecSliderHelper(label, var, ImGuiDataType_Float, minVal, maxVal, sameLine, displayFormat);
 	}
@@ -840,7 +842,7 @@ void Gui::setGlobalScaling(float scale)
 	ImGui::GetStyle().ScaleAllSizes(scale);
 }
 
-void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, vk::Framebuffer framebuffer, vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex)
+void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, std::vector<vk::Framebuffer>& framebuffer, vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex)
 {
 	while (_wrapper->_groupStackSize)
 	{
@@ -849,7 +851,7 @@ void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, vk::Framebuffe
 
 	ImGui::Render();
 
-	buffer.record(currentFrame,
+	buffer.record(currentFrame, imageIndex,
 		[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex)
 		{
 			vk::ClearValue clearColour;
@@ -860,7 +862,7 @@ void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, vk::Framebuffe
 			vk::RenderPassBeginInfo imguiRenderPassInfo{};
 			imguiRenderPassInfo
 				.setRenderPass(renderPass)
-				.setFramebuffer(framebuffer)
+				.setFramebuffer(framebuffer[imageIndex])
 				.setRenderArea(vk::Rect2D({ 0, 0 }, extent))
 				.setClearValues(clearValues);
 
@@ -876,6 +878,12 @@ void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, vk::Framebuffe
 
 	_wrapper->_groupStackSize = 0;
 	_wrapper->_images.clear();
+
+	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+	}
 }
 
 void Gui::onWindowResize(uint32_t width, uint32_t height)
@@ -941,7 +949,8 @@ bool Gui::Widget::direction(const std::string& label, float3& direction)
 	return _gui ? _gui->_wrapper->addDirection(label, direction) : false;
 }
 
-bool Gui::Widget::checkbox(const std::string& label, auto& var, bool sameLine)
+template<>
+bool Gui::Widget::checkbox<bool>(const std::string& label, bool& var, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addCheckbox(label, var, sameLine) : false;
 }
@@ -952,11 +961,12 @@ bool Gui::Widget::checkbox<int>(const std::string& label, int& var, bool sameLin
 	return _gui ? _gui->_wrapper->addCheckbox(label, var, sameLine) : false;
 }
 
-//template<typename T>
-//bool Gui::Widget::checkbox(const std::string& label, T& var, bool sameLine)
-//{
-//	return _gui ? _gui->_wrapper->addBoolVecVar(label, var, sameLine) : false;
-//}
+
+template<typename T>
+bool Gui::Widget::checkbox(const std::string& label, T& var, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addBoolVecVar(label, var, sameLine) : false;
+}
 
 bool Gui::Widget::dragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payloadString)
 {
@@ -1006,20 +1016,27 @@ bool Gui::Widget::var(const std::string& label, T& var, typename T::value_type m
 	return _gui ? _gui->_wrapper->addVecVar(label, var, minValue, maxValue, step, sameLine) : false;
 }
 
-#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, float step, bool sameLine);
+#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, typename TypeName::value_type step, bool sameLine);
 
 ADD_VEC_VAR_TYPE(float2)
 ADD_VEC_VAR_TYPE(float3)
 ADD_VEC_VAR_TYPE(float4)
-//ADD_VEC_VAR_TYPE(uint2)
+ADD_VEC_VAR_TYPE(uint2)
+ADD_VEC_VAR_TYPE(int2)
 
-#undef ADD_VEC_VAR_TYPE;
+#undef ADD_VEC_VAR_TYPE
 
 template<typename T, std::enable_if_t<is_vector<T>::value, bool>>
-bool Gui::Widget::slider(const std::string& label, T& var, typename T::value_type minValue, typename T::value_type maxValue, bool sameLine)
+bool Gui::Widget::slider(const std::string& label, T& var, typename T::value_type minValue, typename T::value_type maxValue, bool sameLine, const char* displayFormat)
 {
-	return _gui ? _gui->_wrapper->addVecSlider(label, var, minValue, maxValue, sameLine) : false;
+	return _gui ? _gui->_wrapper->addVecSlider(label, var, minValue, maxValue, sameLine, displayFormat) : false;
 }
+
+#define ADD_VEC_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, bool sameLine, const char*);
+
+ADD_VEC_SLIDER_TYPE(int2)
+
+#undef ADD_VEC_SLIDER_TYPE
 
 void Gui::Widget::text(const std::string& text, bool sameLine)
 {

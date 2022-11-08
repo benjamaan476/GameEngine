@@ -2,7 +2,7 @@
 
 CommandBuffer::CommandBuffer() {}
 
-CommandBuffer::CommandBuffer(RendererState state, size_t bufferCount)
+CommandBuffer::CommandBuffer(size_t bufferCount)
 {
 	vk::CommandBufferAllocateInfo allocInfo{};
 	allocInfo.setCommandPool(state.commandPool);
@@ -18,7 +18,7 @@ CommandBuffer::CommandBuffer(RendererState state, size_t bufferCount)
 
 }
 
-void CommandBuffer::record(uint32_t bufferIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer)
+void CommandBuffer::record(uint32_t bufferIndex, uint32_t imageIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer)
 {
 	auto& commandBuffer = commandBuffers[bufferIndex];
 
@@ -28,7 +28,7 @@ void CommandBuffer::record(uint32_t bufferIndex, std::function<void(vk::CommandB
 	beginInfo.setPInheritanceInfo(nullptr);
 	commandBuffer.begin(beginInfo);
 
-	recordBuffer(commandBuffer, 0);
+	recordBuffer(commandBuffer, imageIndex);
 
 	commandBuffer.end();
 }

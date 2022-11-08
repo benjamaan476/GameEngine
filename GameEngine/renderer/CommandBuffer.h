@@ -1,16 +1,16 @@
 #pragma once
 
-#include "EngineCore.h"
+#include "../EngineCore.h"
 #include "RendererState.h"
 
 class CommandBuffer
 {
 public:
 	CommandBuffer();
-	CommandBuffer(RendererState state, size_t bufferCount);
+	CommandBuffer(size_t bufferCount);
 
 
-	void record(uint32_t bufferIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer);
+	void record(uint32_t bufferIndex, uint32_t imageIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer);
 
 
 	vk::CommandBuffer operator[] (uint32_t index)
@@ -31,7 +31,7 @@ private:
 class OneTimeCommandBuffer
 {
 public:
-	OneTimeCommandBuffer(RendererState state, std::function<void(vk::CommandBuffer)> oneTimeCommand)
+	OneTimeCommandBuffer(std::function<void(vk::CommandBuffer)> oneTimeCommand)
 	{
 		vk::CommandBufferAllocateInfo allocInfo{};
 		allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);

@@ -41,10 +41,10 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(VkDebugUtilsMessageSev
 	case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
 		LOG_ERROR("{0}", callbackData->pMessage);
 		break;
-	case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-		LOG_TRACE("{0}", callbackData->pMessage);
-	default:
-		LOG_ERROR("{0}", "Debug layer");
+	//case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+	//	LOG_TRACE("{0}", callbackData->pMessage);
+	//default:
+	//	LOG_ERROR("{0}: {1}", "Debug layer", callbackData->pMessage);
 	}
 
 	return true;
@@ -99,7 +99,7 @@ void Application::initGui()
 	imguiRenderPass = state.device.createRenderPass(imguiInfo);
 	ENGINE_ASSERT(imguiRenderPass != vk::RenderPass{}, "Failed to create imgui render pass");
 
-	imguiCommandBuffers = CommandBuffer(state, swapChainFramebuffers.size());
+	imguiCommandBuffers = CommandBuffer(swapChainFramebuffers.size());
 
 	imguiFramebuffers.resize(swapChainFramebuffers.size());
 	for (auto i = 0; i < swapChainFramebuffers.size(); i++)
@@ -114,12 +114,11 @@ void Application::initGui()
 
 		imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
 	}
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
+
+	_gui = Gui::create(swapchainExtent.width, swapchainExtent.height);
 
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-	ImGui::StyleColorsDark();
 	ImGui_ImplGlfw_InitForVulkan(window->getWindow(), true);
 
 	ImGui_ImplVulkan_InitInfo initInfo{};
@@ -146,7 +145,7 @@ void Application::initGui()
 
 	state.device.resetCommandPool(state.commandPool);
 
-	OneTimeCommandBuffer commnad{ state,
+	OneTimeCommandBuffer command{
 		[](vk::CommandBuffer buffer)
 		{
 			ImGui_ImplVulkan_CreateFontsTexture(buffer);
@@ -195,38 +194,40 @@ void Application::mainLoop()
 			// Start the Dear ImGui frame
 			ImGui_ImplVulkan_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
-			ImGui::NewFrame();
+			_gui->begin();
 
 			if (show_demo_window)
 			{
 				ImGui::ShowDemoWindow(&show_demo_window);
 			}
-			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
-			if(ImGui::Button("Show debug window"))
+			
+			auto changed = boardProperties.onRender(_gui.get());
+
+			Gui::Window wind(_gui.get(), "Hello, World");
+
+			if(wind.button("Show debug window"))
 			{
 				show_demo_window = !show_demo_window;
 			}
-			ImGui::ColorEdit4("Primary Colour", glm::value_ptr(boardProperties.primaryColour));
-			ImGui::ColorEdit4("Secondary Colour", glm::value_ptr(boardProperties.secondaryColour));
-			ImGui::SliderInt2("Board Size", glm::value_ptr(boardProperties.size), 0, 20);
 
-			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-			ImGui::Checkbox("Another Window", &show_another_window);
+
+			wind.text("This is some useful text.");               // Display some text (you can use a format strings too)
+			wind.checkbox("Demo Window", show_demo_window);      // Edit bools storing our window open/close state
+			wind.checkbox("Another Window", show_another_window);
 
 			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-			ImGui::ColorEdit3("clear color", (float*)&clearColor); // Edit 3 floats representing a color
+			wind.rgbaColour("clear color", clearColor); // Edit 3 floats representing a color
 
-			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			if (wind.button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
 				counter++;
-			ImGui::SameLine();
-			ImGui::Text("counter = %d", counter);
+
+			auto count = std::format("counter = {}", counter);
+			wind.text(count, true);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-			ImGui::End();
+			//ImGui::End();
 
-			ImGui::Render();
 
 		}
 
@@ -246,7 +247,7 @@ bool Application::isDeviceSuitable(const vk::PhysicalDevice& device) const
 	auto swapChainSupport = querySwapChainSupport(device);
 	auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-	return properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
+	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
 }
 
 bool Application::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice) const
@@ -291,7 +292,7 @@ vk::PresentModeKHR Application::chooseSwapPresentMode(const std::vector<vk::Pres
 {
 	for (const auto& availablePresentMode : availablePresentModes)
 	{
-		if (availablePresentMode == vk::PresentModeKHR::eFifo)
+		if (availablePresentMode == vk::PresentModeKHR::eMailbox)
 		{
 			return availablePresentMode;
 		}
@@ -526,7 +527,7 @@ void Application::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtil
 
 void Application::copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
 {
-	OneTimeCommandBuffer(state,
+	OneTimeCommandBuffer(
 		[&](vk::CommandBuffer commandBuffer)
 		{
 			vk::BufferCopy copyRegion{};
@@ -936,7 +937,7 @@ void Application::createTextureImage()
 		.aspect = vk::ImageAspectFlagBits::eColor
 	};
 
-	textureImage = Image(state, width, height, imageProperties);
+	textureImage = Image(width, height, imageProperties);
 	textureImage.transitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 	textureImage.copyFromBuffer(stagingBuffer.buffer);
 	textureImage.transitionLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -1164,7 +1165,7 @@ void Application::createDescriptorSets()
 
 void Application::createCommandBuffers()
 {
-	commandBuffers = CommandBuffer(state, MaxFramesInFlight);
+	commandBuffers = CommandBuffer(MaxFramesInFlight);
 }
 
 void Application::createSyncObjects()
@@ -1234,20 +1235,19 @@ void Application::recreateSwapChain()
 	createDepthResources();
 	createFramebuffers();
 
-	_gui->render(imguiCommandBuffers, imguiRenderPAss, imguiFramebuffers[imageIndex], swapchainExtent, )
-	//imguiFramebuffers.resize(swapChainFramebuffers.size());
-	//for (auto i = 0; i < swapChainFramebuffers.size(); i++)
-	//{
-	//	vk::FramebufferCreateInfo imguiFrameBufferInfo{};
-	//	imguiFrameBufferInfo
-	//		.setRenderPass(imguiRenderPass)
-	//		.setAttachments(swapchainImages[i].view)
-	//		.setWidth(swapchainExtent.width)
-	//		.setHeight(swapchainExtent.height)
-	//		.setLayers(1);
+	imguiFramebuffers.resize(swapChainFramebuffers.size());
+	for (auto i = 0; i < swapChainFramebuffers.size(); i++)
+	{
+		vk::FramebufferCreateInfo imguiFrameBufferInfo{};
+		imguiFrameBufferInfo
+			.setRenderPass(imguiRenderPass)
+			.setAttachments(swapchainImages[i].view)
+			.setWidth(swapchainExtent.width)
+			.setHeight(swapchainExtent.height)
+			.setLayers(1);
 
-	//	imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
-	//}
+		imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
+	}
 
 	ImGui_ImplVulkan_SetMinImageCount((uint32_t)swapchainImages.size());
 }
@@ -1276,7 +1276,7 @@ void Application::drawFrame()
 	auto commandBuffer = commandBuffers[currentFrame];
 
 
-	commandBuffers.record(currentFrame,
+	commandBuffers.record(currentFrame, imageIndex,
 		[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex) {
 			vk::RenderPassBeginInfo renderPassInfo{};
 			renderPassInfo.setRenderPass(renderPass);
@@ -1319,30 +1319,32 @@ void Application::drawFrame()
 			commandBuffer.endRenderPass();
 		});
 
-	imguiCommandBuffers.record(currentFrame,
-		[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex)
-		{
-			vk::ClearValue clearColour;
-			clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });
+	_gui->render(imguiCommandBuffers, imguiRenderPass, imguiFramebuffers, swapchainExtent, currentFrame, imageIndex);
 
-			auto clearValues = { clearColour };
+	//imguiCommandBuffers.record(currentFrame,
+	//	[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex)
+	//	{
+	//		vk::ClearValue clearColour;
+	//		clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });
 
-			vk::RenderPassBeginInfo imguiRenderPassInfo{};
-			imguiRenderPassInfo
-				.setRenderPass(imguiRenderPass)
-				.setFramebuffer(imguiFramebuffers[imageIndex])
-				.setRenderArea(vk::Rect2D({ 0, 0 }, swapchainExtent))
-				.setClearValues(clearValues);
+	//		auto clearValues = { clearColour };
 
-			commandBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
+	//		vk::RenderPassBeginInfo imguiRenderPassInfo{};
+	//		imguiRenderPassInfo
+	//			.setRenderPass(imguiRenderPass)
+	//			.setFramebuffer(imguiFramebuffers[imageIndex])
+	//			.setRenderArea(vk::Rect2D({ 0, 0 }, swapchainExtent))
+	//			.setClearValues(clearValues);
+
+	//		commandBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
 
 
-			auto drawData = ImGui::GetDrawData();
-			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
+	//		auto drawData = ImGui::GetDrawData();
+	//		ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
 
-			commandBuffer.endRenderPass();
+	//		commandBuffer.endRenderPass();
 
-		});
+	//	});
 
 	vk::SubmitInfo submitInfo{};
 	
@@ -1437,7 +1439,7 @@ std::vector<Image> Application::getSwapchainImages(vk::SwapchainKHR swapchain)
 
 	for (const auto& image : images)
 	{
-		swapchainImages.emplace_back(Image{ state , image, swapchainFormat });
+		swapchainImages.emplace_back(Image{image, swapchainFormat });
 	}
 
 	return swapchainImages;
@@ -1445,7 +1447,7 @@ std::vector<Image> Application::getSwapchainImages(vk::SwapchainKHR swapchain)
 
 void Application::destroyUi()
 {
-	for (auto framebuffer : imguiFramebuffers)
+	for (auto& framebuffer : imguiFramebuffers)
 	{
 		state.device.destroyFramebuffer(framebuffer);
 	}
@@ -1455,8 +1457,6 @@ void Application::destroyUi()
 
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
-
 }
 void Application::cleanup()
 {

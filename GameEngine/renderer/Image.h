@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineCore.h"
+#include "../EngineCore.h"
 #include "RendererState.h"
 
 struct ImageProperties
@@ -25,16 +25,16 @@ public:
 
 public:
 	Image() {}
-	Image(RendererState state, vk::Image image, vk::Format format)
-		: state{ state }, image{ image }
+	Image(vk::Image image, vk::Format format)
+		: image{ image }
 	{
 		properties.format = format;
 		properties.aspect = vk::ImageAspectFlagBits::eColor;
 
 		createImageView();
 	}
-	Image(RendererState state, uint32_t width, uint32_t height, ImageProperties properties)
-		: state{state}, width{width}, height{height}, properties{properties}
+	Image(uint32_t width, uint32_t height, ImageProperties properties)
+		: width{width}, height{height}, properties{properties}
 	{
 		createImage();
 		createMemory();
@@ -80,7 +80,6 @@ public:
 	}
 
 protected:
-	RendererState state{};
 	ImageProperties properties{};
 	void createImage();
 	void createMemory();

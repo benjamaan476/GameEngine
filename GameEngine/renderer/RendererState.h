@@ -51,6 +51,6 @@ struct RendererState
 		ENGINE_ASSERT(false, "Failed to find suitable memory type");
 		return -1;
 	}
-
-
 };
+
+extern inline RendererState state{};
