@@ -1006,14 +1006,20 @@ bool Gui::Widget::var(const std::string& label, T& var, typename T::value_type m
 	return _gui ? _gui->_wrapper->addVecVar(label, var, minValue, maxValue, step, sameLine) : false;
 }
 
-#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName&, typename TypeName::value_type,typename TypeName::value_type, float, bool);
+#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, float step, bool sameLine);
 
 ADD_VEC_VAR_TYPE(float2)
 ADD_VEC_VAR_TYPE(float3)
 ADD_VEC_VAR_TYPE(float4)
-ADD_VEC_VAR_TYPE(uint2)
+//ADD_VEC_VAR_TYPE(uint2)
 
 #undef ADD_VEC_VAR_TYPE;
+
+template<typename T, std::enable_if_t<is_vector<T>::value, bool>>
+bool Gui::Widget::slider(const std::string& label, T& var, typename T::value_type minValue, typename T::value_type maxValue, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addVecSlider(label, var, minValue, maxValue, sameLine) : false;
+}
 
 void Gui::Widget::text(const std::string& text, bool sameLine)
 {
@@ -1075,3 +1081,100 @@ void Gui::Widget::imageButton(const std::string& label, const Image& image, floa
 		_gui->_wrapper->addImageButton(label, image, size, maintainRatio, sameLine);
 	}
 }
+
+template<typename MatrixType>
+bool Gui::Widget::matrix(const std::string& label, MatrixType& var, float minValue, float maxValue, bool sameLine)
+{
+	return _gui ? _gui->_wrapper->addMatrixVar(label, var, minValue, maxValue, sameLine) : false;
+}
+
+Gui::Group::Group(Gui* gui, const std::string& label, bool beginExpanded)
+{
+	if (gui && gui->_wrapper->beginGroup(label, beginExpanded))
+	{
+		_gui = gui;
+	}
+}
+
+bool Gui::Group::isOpen() const
+{
+	return _gui != nullptr;
+}
+
+Gui::Group::~Group()
+{
+	release();
+}
+
+void Gui::Group::release()
+{
+	if (_gui)
+	{
+		_gui->_wrapper->endGroup();
+		_gui = nullptr;
+	}
+}
+
+Gui::Window::Window(Gui* gui, const std::string& label, uint2 size, uint2 position, Gui::WindowFlags flags)
+{
+	auto open = true;
+	if (gui->_wrapper->pushWindow(label, open, size, position, flags))
+	{
+		_gui = gui;
+	}
+}
+
+Gui::Window::Window(Gui* gui, const std::string& label, bool& open, uint2 size, uint2 position, Gui::WindowFlags flags)
+{
+	if (gui->_wrapper->pushWindow(label, open, size, position, flags))
+	{
+		_gui = gui;
+	}
+}
+
+Gui::Window::~Window()
+{
+	release();
+}
+
+void Gui::Window::release()
+{
+	if (_gui)
+	{
+		_gui->_wrapper->popWindow();
+		_gui = nullptr;
+	}
+}
+
+void Gui::Window::columns(uint32_t numColumns)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->beginColumns(numColumns);
+	}
+}
+
+void Gui::Window::nextColumn()
+{
+	if (_gui)
+	{
+		_gui->_wrapper->nextColumn();
+	}
+}
+
+void Gui::Window::windowSize(uint32_t width, uint32_t height)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->setCurrentWindowSize(width, height);
+	}
+}
+
+void Gui::Window::windowPosition(uint32_t x, uint32_t y)
+{
+	if (_gui)
+	{
+		_gui->_wrapper->setCurrentWindowPosition(x, y);
+	}
+}
+

@@ -300,7 +300,7 @@ private:
 
 	ImVec4 clearColor = { 0.f, 0.f, 0.f, 1.f };
 
-
+	std::unique_ptr<Gui> _gui;
 #ifdef NDEBUG
 	const bool enableValidationLayers = false;
 #else

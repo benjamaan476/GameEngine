@@ -1234,20 +1234,20 @@ void Application::recreateSwapChain()
 	createDepthResources();
 	createFramebuffers();
 
+	_gui->render(imguiCommandBuffers, imguiRenderPAss, imguiFramebuffers[imageIndex], swapchainExtent, )
+	//imguiFramebuffers.resize(swapChainFramebuffers.size());
+	//for (auto i = 0; i < swapChainFramebuffers.size(); i++)
+	//{
+	//	vk::FramebufferCreateInfo imguiFrameBufferInfo{};
+	//	imguiFrameBufferInfo
+	//		.setRenderPass(imguiRenderPass)
+	//		.setAttachments(swapchainImages[i].view)
+	//		.setWidth(swapchainExtent.width)
+	//		.setHeight(swapchainExtent.height)
+	//		.setLayers(1);
 
-	imguiFramebuffers.resize(swapChainFramebuffers.size());
-	for (auto i = 0; i < swapChainFramebuffers.size(); i++)
-	{
-		vk::FramebufferCreateInfo imguiFrameBufferInfo{};
-		imguiFrameBufferInfo
-			.setRenderPass(imguiRenderPass)
-			.setAttachments(swapchainImages[i].view)
-			.setWidth(swapchainExtent.width)
-			.setHeight(swapchainExtent.height)
-			.setLayers(1);
-
-		imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
-	}
+	//	imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
+	//}
 
 	ImGui_ImplVulkan_SetMinImageCount((uint32_t)swapchainImages.size());
 }
