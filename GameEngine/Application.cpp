@@ -1,7 +1,6 @@
 #include "Application.h"
 #include "Log/Log.h"
 
-#include <ranges>
 #include <execution>
 #include <algorithm>
 #include <set>
@@ -41,10 +40,12 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(VkDebugUtilsMessageSev
 	case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
 		LOG_ERROR("{0}", callbackData->pMessage);
 		break;
-	//case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-	//	LOG_TRACE("{0}", callbackData->pMessage);
-	//default:
-	//	LOG_ERROR("{0}: {1}", "Debug layer", callbackData->pMessage);
+	case VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+		LOG_TRACE("{0}", callbackData->pMessage);
+		break;
+	default:
+		LOG_ERROR("{0}: {1}", "Debug layer", callbackData->pMessage);
+		break;
 	}
 
 	return true;
@@ -54,7 +55,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(VkDebugUtilsMessageSev
 void Application::initWindow(std::string_view name, uint32_t width, uint32_t height)
 {
 	WindowProperties windowProperties{ name.data(), width, height};
-	window = Window::create(windowProperties);
+	window = EngineWindow::create(windowProperties);
 }
 
 void Application::initGui()
@@ -204,7 +205,7 @@ void Application::mainLoop()
 			
 			auto changed = boardProperties.onRender(_gui.get());
 
-			Gui::Window wind(_gui.get(), "Hello, World");
+			Gui::EngineWindow wind(_gui.get(), "Hello, World");
 
 			if(wind.button("Show debug window"))
 			{
@@ -219,11 +220,11 @@ void Application::mainLoop()
 			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
 			wind.rgbaColour("clear color", clearColor); // Edit 3 floats representing a color
 
-			if (wind.button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-				counter++;
+			//if (wind.button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			//	counter++;
 
-			auto count = std::format("counter = {}", counter);
-			wind.text(count, true);
+			//auto count = std::format("counter = {}", counter);
+			//wind.text(count, true);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			//ImGui::End();
@@ -370,6 +371,11 @@ void Application::createInstance()
 	createInfo.setPApplicationInfo(&info);
 
 	auto extensions = window->GetRequiredExtensions();
+	
+	for (const auto& ext : extensions)
+	{
+		LOG_WARN(ext);
+	}
 
 	if (enableValidationLayers)
 	{
@@ -560,7 +566,7 @@ bool Application::checkValidationLayerSupport() const
 		return layerFound;
 	};
 
-	return std::ranges::all_of(validationLayers, validate);
+	return std::all_of(validationLayers.begin(), validationLayers.end(), validate);
 }
 
 void Application::createSwapchain()

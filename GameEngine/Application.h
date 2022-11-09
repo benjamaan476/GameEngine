@@ -213,7 +213,7 @@ private:
 	static std::vector<char> readShader(const std::filesystem::path& file);
 private:
 
-	Window::SharedPtr window;
+	EngineWindow::SharedPtr window;
 
 	VkDebugUtilsMessengerEXT debugMessenger;
 	vk::SurfaceKHR surface;
@@ -286,7 +286,7 @@ private:
 
 		bool onRender(Gui* gui)
 		{
-			auto window = Gui::Window(gui, "Board Properties");
+			auto window = Gui::EngineWindow(gui, "Board Properties");
 			auto updated = false;
 			updated |= window.rgbaColour("Primary Colour", primaryColour);
 			updated |= window.rgbaColour("Secondary Colour", secondaryColour);
@@ -311,7 +311,7 @@ private:
 #ifdef NDEBUG
 	const bool enableValidationLayers = false;
 #else
-	const bool enableValidationLayers = true;
+	const bool enableValidationLayers = false;
 #endif
 
 	uint32_t currentFrame = 0;

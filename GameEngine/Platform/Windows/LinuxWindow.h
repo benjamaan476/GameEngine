@@ -1,20 +1,20 @@
 #pragma once
-#define VK_USE_PLATFORM_WIN32_KHR
+#define VK_USE_PLATFORM_XCB_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
+//#define GLFW_EXPOSE_NATIVE_X11
+//#include <GLFW/glfw3native.h>
 
 #include <vulkan/vulkan.hpp>
 
 #include "../Window.h"
 
-class WindowsWindow : public EngineWindow
+class LinuxWindow : public EngineWindow
 {
 public:
 	static EngineWindow::SharedPtr create(const WindowProperties& properties);
 	vk::SurfaceKHR createSurface(const vk::Instance& instance, vk::AllocationCallbacks allocator) override;
-	~WindowsWindow() override;
+	~LinuxWindow() override;
 
 	void OnUpdate() const override;
 	bool isRunning() const override;
@@ -30,9 +30,10 @@ public:
 
 	std::pair<uint32_t, uint32_t> getFramebufferSize() const override;
 	void waitEvents() override;
+
 	GLFWwindow* getWindow() const override { return window; }
 private:
-	explicit WindowsWindow(const WindowProperties& properties);
+	explicit LinuxWindow(const WindowProperties& properties);
 	virtual void Shutdown();
 
 private:

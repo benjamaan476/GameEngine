@@ -1,4 +1,4 @@
-﻿# CMakeList.txt : CMake project for GameEngine, include source and define
+# CMakeList.txt : CMake project for GameEngine, include source and define
 # project specific logic here.
 #
 cmake_minimum_required (VERSION 3.8)
@@ -20,7 +20,7 @@ file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/*.cpp)
 add_compile_definitions(_PROJECT_DIR_="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add source to this project's executable.
-add_executable (GameEngine "main.cpp" "Application.cpp" "Application.h" "Log/Log.h" "Log/Log.cpp" "Platform/Window.h" "Platform/Window.cpp" "Platform/Windows/WindowsWindow.h" "Platform/Windows/WindowsWindow.cpp" "EngineCore.h" "renderer/Image.h" "renderer/Image.cpp" "renderer/RendererState.h" "renderer/Buffer.h" "renderer/buffer.cpp" "renderer/CommandBuffer.h" "renderer/CommandBuffer.cpp" "ui/gui.h" "ui/gui.cpp")
+add_executable (GameEngine "main.cpp" "Application.cpp" "Log/Log.cpp" "Platform/Window.cpp" "Platform/Windows/LinuxWindow.cpp" "renderer/Image.cpp" "renderer/Buffer.cpp" "renderer/CommandBuffer.cpp" "ui/gui.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET GameEngine PROPERTY CXX_STANDARD 20)

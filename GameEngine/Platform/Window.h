@@ -8,7 +8,6 @@
 #include <tuple>
 
 #include <GLFW/glfw3.h>
-
 struct WindowProperties
 {
 	std::string title;
@@ -16,16 +15,16 @@ struct WindowProperties
 	uint32_t height;
 };
 
-class Window
+class EngineWindow
 {
 public:
 
-	using SharedPtr = std::shared_ptr<Window>;
+	using SharedPtr = std::shared_ptr<EngineWindow>;
 	using EventCallback = std::function<void(void)>;
 
 	static SharedPtr create(const WindowProperties& properties);
 	virtual vk::SurfaceKHR createSurface(const vk::Instance& instance, vk::AllocationCallbacks allocator) = 0;
-	virtual ~Window() = default;
+	virtual ~EngineWindow() = default;
 
 	virtual void OnUpdate() const = 0;
 	virtual bool isRunning() const = 0;

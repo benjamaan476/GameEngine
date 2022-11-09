@@ -136,15 +136,15 @@ public:
 		void release();
 	};
 
-	class Window : public Widget
+	class EngineWindow : public Widget
 	{
 	public:
-		Window(Gui* gui, const std::string& name, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
-		Window(Gui* gui, const std::string& name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
-		Window(const Widget& widget, const std::string& name, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
-		Window(const Widget& widget, const std::string& name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
+		EngineWindow(Gui* gui, const std::string& name, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
+		EngineWindow(Gui* gui, const std::string& name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
+		EngineWindow(const Widget& widget, const std::string& name, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
+		EngineWindow(const Widget& widget, const std::string& name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
 
-		~Window();
+		~EngineWindow();
 
 		void release();
 		void columns(uint32_t numColumns);

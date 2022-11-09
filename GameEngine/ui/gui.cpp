@@ -81,7 +81,7 @@ private:
 	bool addVecSlider(const std::string& label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max(), bool sameLine = false, const char* displayFormat = nullptr);
 
 	template<int R, int C, typename T>
-	void addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, float minValue = std::numeric_limits<float>::lowest(), float maxValue = std::numeric_limits<float>::max(), bool sameLine = false);
+	bool addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, float minValue = std::numeric_limits<float>::lowest(), float maxValue = std::numeric_limits<float>::max(), bool sameLine = false);
 };
 
 void GuiImpl::init(Gui* gui, float scaleFactor)
@@ -748,7 +748,7 @@ bool GuiImpl::addVecSlider(const std::string& label, T& var, typename T::value_t
 }
 
 template<int R, int C, typename T>
-void GuiImpl::addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, float minValue, float maxValue, bool sameLine)
+bool GuiImpl::addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, float minValue, float maxValue, bool sameLine)
 {
 	std::string labelString{ label };
 	std::string hiddenLabelString{ "##" };
@@ -784,7 +784,7 @@ void GuiImpl::addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, flo
 
 			auto correctedCursorPosition = ImGui::GetCursorScreenPos();
 			correctedCursorPosition.y += oldSpace;
-			ImGui::GetCursorScreenPos(correctedCursorPosition);
+			ImGui::SetCursorScreenPos(correctedCursorPosition);
 			bottomRight.y = ImGui::GetCursorScreenPos().y;
 		}
 		else if (i == 1)
@@ -1132,7 +1132,7 @@ void Gui::Group::release()
 	}
 }
 
-Gui::Window::Window(Gui* gui, const std::string& label, uint2 size, uint2 position, Gui::WindowFlags flags)
+Gui::EngineWindow::EngineWindow(Gui* gui, const std::string& label, uint2 size, uint2 position, Gui::WindowFlags flags)
 {
 	auto open = true;
 	if (gui->_wrapper->pushWindow(label, open, size, position, flags))
@@ -1141,7 +1141,7 @@ Gui::Window::Window(Gui* gui, const std::string& label, uint2 size, uint2 positi
 	}
 }
 
-Gui::Window::Window(Gui* gui, const std::string& label, bool& open, uint2 size, uint2 position, Gui::WindowFlags flags)
+Gui::EngineWindow::EngineWindow(Gui* gui, const std::string& label, bool& open, uint2 size, uint2 position, Gui::WindowFlags flags)
 {
 	if (gui->_wrapper->pushWindow(label, open, size, position, flags))
 	{
@@ -1149,12 +1149,12 @@ Gui::Window::Window(Gui* gui, const std::string& label, bool& open, uint2 size, 
 	}
 }
 
-Gui::Window::~Window()
+Gui::EngineWindow::~EngineWindow()
 {
 	release();
 }
 
-void Gui::Window::release()
+void Gui::EngineWindow::release()
 {
 	if (_gui)
 	{
@@ -1163,7 +1163,7 @@ void Gui::Window::release()
 	}
 }
 
-void Gui::Window::columns(uint32_t numColumns)
+void Gui::EngineWindow::columns(uint32_t numColumns)
 {
 	if (_gui)
 	{
@@ -1171,7 +1171,7 @@ void Gui::Window::columns(uint32_t numColumns)
 	}
 }
 
-void Gui::Window::nextColumn()
+void Gui::EngineWindow::nextColumn()
 {
 	if (_gui)
 	{
@@ -1179,7 +1179,7 @@ void Gui::Window::nextColumn()
 	}
 }
 
-void Gui::Window::windowSize(uint32_t width, uint32_t height)
+void Gui::EngineWindow::windowSize(uint32_t width, uint32_t height)
 {
 	if (_gui)
 	{
@@ -1187,7 +1187,7 @@ void Gui::Window::windowSize(uint32_t width, uint32_t height)
 	}
 }
 
-void Gui::Window::windowPosition(uint32_t x, uint32_t y)
+void Gui::EngineWindow::windowPosition(uint32_t x, uint32_t y)
 {
 	if (_gui)
 	{

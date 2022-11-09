@@ -1,6 +1,7 @@
 #include "WindowsWindow.h"
 
-Window::SharedPtr WindowsWindow::create(const WindowProperties& properties)
+
+EngineWindow::SharedPtr WindowsWindow::create(const WindowProperties& properties)
 {
 	return std::shared_ptr<WindowsWindow>(new WindowsWindow(properties));
 }
@@ -81,6 +82,8 @@ WindowsWindow::WindowsWindow(const WindowProperties& properties)
 	{
 		glfwInit();
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 0);
 		isGLFWInitialised = true;
 	}
 
