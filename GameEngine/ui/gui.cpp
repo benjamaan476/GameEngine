@@ -21,7 +21,7 @@ private:
 	void init(Gui* gui, float scaleFactor);
 	void compileFonts();
 
-	bool addCheckboxes(const std::string& label, std::span<bool> data, bool sameLine = false);
+	bool addCheckboxes(std::string_view label, std::span<bool> data, bool sameLine = false);
 
 	struct ComboData
 	{
@@ -31,61 +31,62 @@ private:
 
 	std::unordered_map<std::string, ComboData> _dropDownValues;
 
-	std::vector<Image> _images;
+	std::unordered_map<vk::Image, VkDescriptorSet> _imageDescriptors;
+
 	float _scaleFactor = 1.f;
 	uint32_t _groupStackSize{};
 
-	bool pushWindow(const std::string& name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, Gui::WindowFlags flags = Gui::WindowFlags::Default);
+	bool pushWindow(std::string_view name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, Gui::WindowFlags flags = Gui::WindowFlags::Default);
 	void popWindow();
 	void setCurrentWindowSize(uint32_t width, uint32_t height);
 	void setCurrentWindowPosition(uint32_t x, uint32_t y);
 	void beginColumns(uint32_t numColumns);
 	void nextColumn();
 
-	bool beginGroup(const std::string& label, bool beginExpanded = false);
+	bool beginGroup(std::string_view label, bool beginExpanded = false);
 	void endGroup();
 
 	void indent(float i);
 	void addSeparator(uint32_t count = 1);
-	void addDummyItem(const std::string& label, const float2& size, bool sameLine = false);
+	void addDummyItem(std::string_view label, const float2& size, bool sameLine = false);
 	void addRect(const float2& size, const float4& colour = float4(1.0f, 1.0f, 1.0f, 1.0f), bool filled = false, bool sameLine = false);
-	bool addDropdown(const std::string& label, const Gui::DropdownList& values, uint32_t& var, bool sameLine = false);
-	bool addButton(const std::string& label, bool sameLine = false);
+	bool addDropdown(std::string_view label, const Gui::DropdownList& values, uint32_t& var, bool sameLine = false);
+	bool addButton(std::string_view label, bool sameLine = false);
 	bool addRadioButtons(const Gui::RadioButtonGroup& buttons, uint32_t& activeID);
-	bool addDirection(const std::string& label, float3& direction);
-	bool addCheckbox(const std::string& label, bool& var, bool sameLine = false);
-	bool addCheckbox(const std::string& label, int& var, bool sameLine = false);
+	bool addDirection(std::string_view label, float3& direction);
+	bool addCheckbox(std::string_view label, bool& var, bool sameLine = false);
+	bool addCheckbox(std::string_view label, int& var, bool sameLine = false);
 	
 	template<typename T>
-	bool addBoolVecVar(const std::string& label, T& var, bool sameLine = false);
+	bool addBoolVecVar(std::string_view label, T& var, bool sameLine = false);
 	
-	bool addDragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payloadString);
-	bool addDragDropDest(const std::string& dataLabel, std::string& payloadString);
+	bool addDragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString);
+	bool addDragDropDest(std::string_view dataLabel, std::string& payloadString);
 
-	void addText(const std::string& text, bool sameLine = false);
-	void addTextWrapped(const std::string& text);
-	bool addTextbox(const std::string& label, std::string& text, uint32_t lineCount = 1, Gui::TextFlags flags = Gui::TextFlags::Empty);
-	bool addMultiTextbox(const std::string& label, const std::vector<std::string>& textLabels, std::vector<std::string>& textEntries);
-	void addTooltip(const std::string& tip, bool sameLine = true);
+	void addText(std::string_view text, bool sameLine = false);
+	void addTextWrapped(std::string_view text);
+	bool addTextbox(std::string_view label, std::string& text, uint32_t lineCount = 1, Gui::TextFlags flags = Gui::TextFlags::Empty);
+	bool addMultiTextbox(std::string_view label, const std::vector<std::string>& textLabels, std::vector<std::string>& textEntries);
+	void addTooltip(std::string_view tip, bool sameLine = true);
 
-	bool addRgbColor(const std::string& label, float3& var, bool sameLine = false);
-	bool addRgbaColor(const std::string& label, float4& var, bool sameLine = false);
+	bool addRgbColor(std::string_view label, float3& var, bool sameLine = false);
+	bool addRgbaColor(std::string_view label, float4& var, bool sameLine = false);
 
-	void addImage(const std::string& label, const Image& image, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
-	bool addImageButton(const std::string& label, const Image& image, float2 size, bool maintainRatio = true, bool sameLine = false);
-
-	template<typename T>
-	bool addScalarVar(const std::string& label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), T step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
-	template<typename T>
-	bool addScalarSlider(const std::string& label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), bool sameLine = false, const char* displayFormat = nullptr);
+	void addImage(std::string_view label, const Image& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
+	bool addImageButton(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
 
 	template<typename T>
-	bool addVecVar(const std::string& label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max(), typename T::value_type step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
+	bool addScalarVar(std::string_view label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), T step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
 	template<typename T>
-	bool addVecSlider(const std::string& label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max(), bool sameLine = false, const char* displayFormat = nullptr);
+	bool addScalarSlider(std::string_view label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), bool sameLine = false, const char* displayFormat = nullptr);
+
+	template<typename T>
+	bool addVecVar(std::string_view label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max(), typename T::value_type step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
+	template<typename T>
+	bool addVecSlider(std::string_view label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max(), bool sameLine = false, const char* displayFormat = nullptr);
 
 	template<int R, int C, typename T>
-	void addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, float minValue = std::numeric_limits<float>::lowest(), float maxValue = std::numeric_limits<float>::max(), bool sameLine = false);
+	void addMatrixVar(std::string_view label, glm::mat<C, R, T>& var, float minValue = std::numeric_limits<float>::lowest(), float maxValue = std::numeric_limits<float>::max(), bool sameLine = false);
 };
 
 void GuiImpl::init(Gui* gui, float scaleFactor)
@@ -104,10 +105,10 @@ void GuiImpl::compileFonts()
 
 }
 
-bool GuiImpl::addCheckboxes(const std::string& label, std::span<bool> data, bool sameLine)
+bool GuiImpl::addCheckboxes(std::string_view label, std::span<bool> data, bool sameLine)
 {
 	auto modified = false;
-	std::string labelString{ std::string("##") + label + '0' };
+	std::string labelString{ std::string("##") + label.data() + '0'};
 	
 	for (auto i = 0; i < data.size() - 1; i++)
 	{
@@ -120,7 +121,7 @@ bool GuiImpl::addCheckboxes(const std::string& label, std::span<bool> data, bool
 	return modified;
 }
 
-bool GuiImpl::pushWindow(const std::string& label, bool& open, uint2 size, uint2 position, Gui::WindowFlags flags)
+bool GuiImpl::pushWindow(std::string_view label, bool& open, uint2 size, uint2 position, Gui::WindowFlags flags)
 {
 	bool allowClose = isSet(flags, Gui::WindowFlags::CloseButton);
 	if (allowClose)
@@ -155,12 +156,12 @@ bool GuiImpl::pushWindow(const std::string& label, bool& open, uint2 size, uint2
 	{
 		imguiFlags |= ImGuiWindowFlags_NoResize;
 	}
-	if (!isSet(flags, Gui::WindowFlags::AutoResize))
+	if (isSet(flags, Gui::WindowFlags::AutoResize))
 	{
 		imguiFlags |= ImGuiWindowFlags_AlwaysAutoResize;
 	}
 
-	ImGui::Begin(label.c_str(), allowClose ? &open : nullptr, imguiFlags);
+	ImGui::Begin(label.data(), allowClose ? &open : nullptr, imguiFlags);
 
 	if (!open)
 	{
@@ -195,10 +196,10 @@ void GuiImpl::nextColumn()
 	ImGui::NextColumn();
 }
 
-bool GuiImpl::beginGroup(const std::string& name, bool beginExpanded)
+bool GuiImpl::beginGroup(std::string_view name, bool beginExpanded)
 {
 	auto flags = beginExpanded ? ImGuiTreeNodeFlags_DefaultOpen : 0;
-	auto visible = _groupStackSize ? ImGui::TreeNodeEx(name.c_str(), flags) : ImGui::CollapsingHeader(name.c_str(), flags);
+	auto visible = _groupStackSize ? ImGui::TreeNodeEx(name.data(), flags) : ImGui::CollapsingHeader(name.data(), flags);
 	if (visible)
 	{
 		_groupStackSize++;
@@ -230,14 +231,14 @@ void GuiImpl::addSeparator(uint32_t count)
 	}
 }
 
-void GuiImpl::addDummyItem(const std::string& label, const float2& size, bool sameLine)
+void GuiImpl::addDummyItem(std::string_view label, const float2& size, bool sameLine)
 {
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
 
-	ImGui::PushID(label.c_str());
+	ImGui::PushID(label.data());
 	ImGui::Dummy({ size.x, size.y });
 	ImGui::PopID();
 }
@@ -264,7 +265,7 @@ void GuiImpl::addRect(const float2& size, const float4& colour, bool filled, boo
 	}
 }
 
-bool GuiImpl::addDropdown(const std::string& label, const Gui::DropdownList& values, uint32_t& var, bool sameLine)
+bool GuiImpl::addDropdown(std::string_view label, const Gui::DropdownList& values, uint32_t& var, bool sameLine)
 {
 	if (values.empty())
 	{
@@ -276,7 +277,7 @@ bool GuiImpl::addDropdown(const std::string& label, const Gui::DropdownList& val
 		ImGui::SameLine();
 	}
 
-	const auto& iter = _dropDownValues.find(label);
+	const auto& iter = _dropDownValues.find(label.data());
 
 	auto currentItem = -1;
 
@@ -287,14 +288,14 @@ bool GuiImpl::addDropdown(const std::string& label, const Gui::DropdownList& val
 			if (values[i].index == var)
 			{
 				currentItem = i;
-				_dropDownValues[label].currentItem = i;
+				_dropDownValues[label.data()].currentItem = i;
 				break;
 			}
 		}
 	}
 	else
 	{
-		currentItem = _dropDownValues[label].currentItem;
+		currentItem = _dropDownValues[label.data()].currentItem;
 	}
 
 	std::string comboString;
@@ -306,21 +307,21 @@ bool GuiImpl::addDropdown(const std::string& label, const Gui::DropdownList& val
 
 	auto previousItem = currentItem;
 
-	auto b = ImGui::Combo(label.c_str(), &currentItem, comboString.c_str());
-	_dropDownValues[label].currentItem = currentItem;
-	_dropDownValues[label].lastValue = values[currentItem].index;
+	auto b = ImGui::Combo(label.data(), &currentItem, comboString.data());
+	_dropDownValues[label.data()].currentItem = currentItem;
+	_dropDownValues[label.data()].lastValue = values[currentItem].index;
 	var = values[currentItem].index;
 
 	return b && previousItem != currentItem;
 }
 
-bool GuiImpl::addButton(const std::string& label, bool sameLine)
+bool GuiImpl::addButton(std::string_view label, bool sameLine)
 {
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	return ImGui::Button(label.c_str());
+	return ImGui::Button(label.data());
 }
 
 bool GuiImpl::addRadioButtons(const Gui::RadioButtonGroup& buttons, uint32_t& activeID)
@@ -333,13 +334,13 @@ bool GuiImpl::addRadioButtons(const Gui::RadioButtonGroup& buttons, uint32_t& ac
 		{
 			ImGui::SameLine();
 		}
-		ImGui::RadioButton(button.label.c_str(), (int*)&activeID, button.id);
+		ImGui::RadioButton(button.label.data(), (int*)&activeID, button.id);
 	}
 
 	return oldValue != activeID;
 }
 
-bool GuiImpl::addDirection(const std::string& label, float3& direction)
+bool GuiImpl::addDirection(std::string_view label, float3& direction)
 {
 	auto dir = glm::normalize(direction);
 	auto b = addVecVar(label, dir, -1.f, 1.f, 0.001f, false, "%.3f");
@@ -352,16 +353,16 @@ bool GuiImpl::addDirection(const std::string& label, float3& direction)
 	return b;
 }
 
-bool GuiImpl::addCheckbox(const std::string& label, bool& var, bool sameLine)
+bool GuiImpl::addCheckbox(std::string_view label, bool& var, bool sameLine)
 {
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	return ImGui::Checkbox(label.c_str(), &var);
+	return ImGui::Checkbox(label.data(), &var);
 }
 
-bool GuiImpl::addCheckbox(const std::string& label, int& var, bool sameLine)
+bool GuiImpl::addCheckbox(std::string_view label, int& var, bool sameLine)
 {
 	auto value = var != 0;
 	auto modified = addCheckbox(label, value, sameLine);
@@ -371,12 +372,12 @@ bool GuiImpl::addCheckbox(const std::string& label, int& var, bool sameLine)
 }
 
 template<typename T>
-bool GuiImpl::addBoolVecVar(const std::string& label, T& var, bool sameLine)
+bool GuiImpl::addBoolVecVar(std::string_view label, T& var, bool sameLine)
 {
 	return addCheckboxes(label, { glm::value_ptr(var), var.length() }, sameLine);
 }
 
-bool GuiImpl::addDragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payloadString)
+bool GuiImpl::addDragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString)
 {
 	if (ImGui::IsItemHovered() && (ImGui::IsMouseClicked(0) || ImGui::IsMouseClicked(1)))
 	{
@@ -392,21 +393,21 @@ bool GuiImpl::addDragDropSource(const std::string& label, const std::string& dat
 
 	if (b)
 	{
-		ImGui::SetDragDropPayload(dataLabel.c_str(), payloadString.c_str(), payloadString.size() * sizeof(payloadString[0]), ImGuiCond_Once);
+		ImGui::SetDragDropPayload(dataLabel.data(), payloadString.data(), payloadString.size() * sizeof(payloadString[0]), ImGuiCond_Once);
 	}
 
 	return b;
 }
 
-bool GuiImpl::addDragDropDest(const std::string& dataLabel, std::string& payloadString)
+bool GuiImpl::addDragDropDest(std::string_view dataLabel, std::string& payloadString)
 {
 	auto b = false;
 
 	if (ImGui::BeginDragDropTarget())
 	{
-		auto dragDropPayload = ImGui::AcceptDragDropPayload(dataLabel.c_str());
+		auto dragDropPayload = ImGui::AcceptDragDropPayload(dataLabel.data());
 
-		b = dragDropPayload && dragDropPayload->IsDataType(dataLabel.c_str()) && (dragDropPayload->Data != nullptr);
+		b = dragDropPayload && dragDropPayload->IsDataType(dataLabel.data()) && (dragDropPayload->Data != nullptr);
 
 		if (b)
 		{
@@ -420,21 +421,21 @@ bool GuiImpl::addDragDropDest(const std::string& dataLabel, std::string& payload
 	return b;
 }
 
-void GuiImpl::addText(const std::string& text, bool sameLine)
+void GuiImpl::addText(std::string_view text, bool sameLine)
 {
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	ImGui::TextUnformatted(text.c_str());
+	ImGui::TextUnformatted(text.data());
 }
 
-void GuiImpl::addTextWrapped(const std::string& text)
+void GuiImpl::addTextWrapped(std::string_view text)
 {
-	ImGui::TextWrapped("%s", text.c_str());
+	ImGui::TextWrapped("%s", text.data());
 }
 
-bool GuiImpl::addTextbox(const std::string& label, std::string& text, uint32_t lineCount, Gui::TextFlags flags)
+bool GuiImpl::addTextbox(std::string_view label, std::string& text, uint32_t lineCount, Gui::TextFlags flags)
 {
 	auto fitWindow = isSet(flags, Gui::TextFlags::FitWindow);
 
@@ -453,11 +454,11 @@ bool GuiImpl::addTextbox(const std::string& label, std::string& text, uint32_t l
 	if (lineCount > 1)
 	{
 		auto flags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CtrlEnterForNewLine;
-		return ImGui::InputTextMultiline(label.c_str(), buf, length, { -1.f, ImGui::GetTextLineHeight() * lineCount }, flags);
+		return ImGui::InputTextMultiline(label.data(), buf, length, { -1.f, ImGui::GetTextLineHeight() * lineCount }, flags);
 	}
 	else
 	{
-		return ImGui::InputText(label.c_str(), buf, length, ImGuiInputTextFlags_EnterReturnsTrue);
+		return ImGui::InputText(label.data(), buf, length, ImGuiInputTextFlags_EnterReturnsTrue);
 	}
 
 	if (fitWindow)
@@ -467,7 +468,7 @@ bool GuiImpl::addTextbox(const std::string& label, std::string& text, uint32_t l
 }
 
 
-bool GuiImpl::addMultiTextbox(const std::string& label, const std::vector<std::string>& textLabels, std::vector<std::string>& textEntries)
+bool GuiImpl::addMultiTextbox(std::string_view label, const std::vector<std::string>& textLabels, std::vector<std::string>& textEntries)
 {
 	static uint32_t idOffset = 0;
 	auto result = false;
@@ -480,7 +481,7 @@ bool GuiImpl::addMultiTextbox(const std::string& label, const std::vector<std::s
 	return addButton(label) || result;
 }
 
-void GuiImpl::addTooltip(const std::string& tip, bool sameLine)
+void GuiImpl::addTooltip(std::string_view tip, bool sameLine)
 {
 	if (sameLine)
 	{
@@ -491,33 +492,33 @@ void GuiImpl::addTooltip(const std::string& tip, bool sameLine)
 	{
 		ImGui::BeginTooltip();
 		ImGui::PushTextWrapPos(450.f);
-		ImGui::TextUnformatted(tip.c_str());
+		ImGui::TextUnformatted(tip.data());
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
 	}
 }
 
-bool GuiImpl::addRgbColor(const std::string& label, float3& var, bool sameLine)
+bool GuiImpl::addRgbColor(std::string_view label, float3& var, bool sameLine)
 {
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
 
-	return ImGui::ColorEdit3(label.c_str(), glm::value_ptr(var));
+	return ImGui::ColorEdit3(label.data(), glm::value_ptr(var));
 }
 
-bool GuiImpl::addRgbaColor(const std::string& label, float4& var, bool sameLine)
+bool GuiImpl::addRgbaColor(std::string_view label, float4& var, bool sameLine)
 {
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
 
-	return ImGui::ColorEdit4(label.c_str(), glm::value_ptr(var));
+	return ImGui::ColorEdit4(label.data(), glm::value_ptr(var));
 }
 
-void GuiImpl::addImage(const std::string& label, const Image& image, float2 size, bool maintainRatio, bool sameLine)
+void GuiImpl::addImage(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (size == float2(0))
 	{
@@ -525,40 +526,52 @@ void GuiImpl::addImage(const std::string& label, const Image& image, float2 size
 		size = { windowSize.x, windowSize.y };
 	}
 
-	ImGui::PushID(label.c_str());
+	ImGui::PushID(label.data());
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	_images.push_back(image);
+
+	if (!_imageDescriptors.contains(image.image))
+	{
+		_imageDescriptors.insert({ image.image, ImGui_ImplVulkan_AddTexture(sampler, image.view, static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal)) });
+	}
 
 	auto aspectRatio = maintainRatio ? (float)image.height / (float)image.width : 1.f;
 
-	ImGui::Image(reinterpret_cast<ImTextureID>(_images.size()), { size.x, maintainRatio ? size.x * aspectRatio : size.y });
+
+	ImGui::Image(_imageDescriptors[image.image], {size.x, maintainRatio ? size.x * aspectRatio : size.y});
+
+	ImGui::PopID();
 }
 
-bool GuiImpl::addImageButton(const std::string& label, const Image& image, float2 size, bool maintainRatio, bool sameLine)
+bool GuiImpl::addImageButton(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
-	_images.push_back(image);
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
 
+
+	if (!_imageDescriptors.contains(image.image))
+	{
+		_imageDescriptors.insert({ image.image,ImGui_ImplVulkan_AddTexture(sampler, image.view, static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal)) });
+	}
+
 	auto aspectRatio = maintainRatio ? (float)image.height / (float)image.width : 1.f;
-	return ImGui::ImageButton((ImTextureID)_images.size(), { size.x, maintainRatio ? size.x * aspectRatio : size.y });
+	return ImGui::ImageButton(_imageDescriptors[image.image], { size.x, maintainRatio ? size.x * aspectRatio : size.y });
 }
 
 
 template<typename T>
-bool addScalarVarHelper(const std::string& label, T& var, ImGuiDataType_ imguiType, T minValue, T maxValue, T step, bool sameLine, const char* displayFormat)
+bool addScalarVarHelper(std::string_view label, T& var, ImGuiDataType_ imguiType, T minValue, T maxValue, T step, bool sameLine, const char* displayFormat)
 {
 	ImGui::PushItemWidth(200);
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	auto b = ImGui::DragScalar(label.c_str(), imguiType, &var, (float)step, &minValue, &maxValue, displayFormat);
+	auto b = ImGui::DragScalar(label.data(), imguiType, &var, (float)step, &minValue, &maxValue, displayFormat);
 	var = glm::clamp(var, minValue, maxValue);
 	ImGui::PopItemWidth();
 
@@ -570,7 +583,7 @@ struct foobar : std::false_type
 { };
 
 template<typename T>
-bool GuiImpl::addScalarVar(const std::string& label, T& var, T minVal, T maxVal, T step, bool sameLine, const char* displayFormat)
+bool GuiImpl::addScalarVar(std::string_view label, T& var, T minVal, T maxVal, T step, bool sameLine, const char* displayFormat)
 {
 	if constexpr (std::is_same<T, int32_t>::value)
 	{
@@ -607,14 +620,14 @@ bool GuiImpl::addScalarVar(const std::string& label, T& var, T minVal, T maxVal,
 }
 
 template<typename T>
-bool addScalarSliderHelper(const std::string& label, T& var, ImGuiDataType_ imguiType, T minValue, T maxValue, bool sameLine, const char* displayFormat)
+bool addScalarSliderHelper(std::string_view label, T& var, ImGuiDataType_ imguiType, T minValue, T maxValue, bool sameLine, const char* displayFormat)
 {
 	ImGui::PushItemWidth(200);
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	auto b = ImGui::SliderScalar(label.c_str(), imguiType, &var, &minValue, &maxValue, displayFormat);
+	auto b = ImGui::SliderScalar(label.data(), imguiType, &var, &minValue, &maxValue, displayFormat);
 	var = glm::clamp(var, minValue, maxValue);
 	ImGui::PopItemWidth();
 
@@ -622,7 +635,7 @@ bool addScalarSliderHelper(const std::string& label, T& var, ImGuiDataType_ imgu
 }
 
 template<typename T>
-bool GuiImpl::addScalarSlider(const std::string& label, T& var, T minVal, T maxVal, bool sameLine, const char* displayFormat)
+bool GuiImpl::addScalarSlider(std::string_view label, T& var, T minVal, T maxVal, bool sameLine, const char* displayFormat)
 {
 	if constexpr (std::is_same<T, int32_t>::value)
 	{
@@ -659,14 +672,14 @@ bool GuiImpl::addScalarSlider(const std::string& label, T& var, T minVal, T maxV
 }
 
 template<typename T>
-bool addVecVarHelper(const std::string& label, T& var, ImGuiDataType_ imguiType, typename T::value_type minValue, typename T::value_type maxValue, typename T::value_type step, bool sameLine, const char* displayFormat)
+bool addVecVarHelper(std::string_view label, T& var, ImGuiDataType_ imguiType, typename T::value_type minValue, typename T::value_type maxValue, typename T::value_type step, bool sameLine, const char* displayFormat)
 {
 	ImGui::PushItemWidth(200);
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	auto b = ImGui::DragScalarN(label.c_str(), imguiType, glm::value_ptr(var), var.length(), (float)step, &minValue, &maxValue, displayFormat);
+	auto b = ImGui::DragScalarN(label.data(), imguiType, glm::value_ptr(var), var.length(), (float)step, &minValue, &maxValue, displayFormat);
 	var = glm::clamp(var, minValue, maxValue);
 	ImGui::PopItemWidth();
 
@@ -675,7 +688,7 @@ bool addVecVarHelper(const std::string& label, T& var, ImGuiDataType_ imguiType,
 
 
 template<typename T>
-bool GuiImpl::addVecVar(const std::string& label, T& var, typename T::value_type minVal, typename T::value_type maxVal, typename T::value_type step, bool sameLine, const char* displayFormat)
+bool GuiImpl::addVecVar(std::string_view label, T& var, typename T::value_type minVal, typename T::value_type maxVal, typename T::value_type step, bool sameLine, const char* displayFormat)
 {
 	if constexpr (std::is_same<typename T::value_type, int32_t>::value)
 	{
@@ -708,14 +721,14 @@ bool GuiImpl::addVecVar(const std::string& label, T& var, typename T::value_type
 }
 
 template<typename T>
-bool addVecSliderHelper(const std::string& label, T& var, ImGuiDataType_ imguiType, typename T::value_type minValue, typename T::value_type maxValue, bool sameLine, const char* displayFormat)
+bool addVecSliderHelper(std::string_view label, T& var, ImGuiDataType_ imguiType, typename T::value_type minValue, typename T::value_type maxValue, bool sameLine, const char* displayFormat)
 {
 	ImGui::PushItemWidth(200);
 	if (sameLine)
 	{
 		ImGui::SameLine();
 	}
-	auto b = ImGui::SliderScalarN(label.c_str(), imguiType, glm::value_ptr(var), var.length(), &minValue, &maxValue, displayFormat);
+	auto b = ImGui::SliderScalarN(label.data(), imguiType, glm::value_ptr(var), var.length(), &minValue, &maxValue, displayFormat);
 	var = glm::clamp(var, minValue, maxValue);
 	ImGui::PopItemWidth();
 
@@ -723,7 +736,7 @@ bool addVecSliderHelper(const std::string& label, T& var, ImGuiDataType_ imguiTy
 }
 
 template<typename T>
-bool GuiImpl::addVecSlider(const std::string& label, T& var, typename T::value_type minVal, typename T::value_type maxVal, bool sameLine, const char* displayFormat)
+bool GuiImpl::addVecSlider(std::string_view label, T& var, typename T::value_type minVal, typename T::value_type maxVal, bool sameLine, const char* displayFormat)
 {
 	if constexpr (std::is_same<typename T::value_type, int32_t>::value)
 	{
@@ -752,7 +765,7 @@ bool GuiImpl::addVecSlider(const std::string& label, T& var, typename T::value_t
 }
 
 template<int R, int C, typename T>
-void GuiImpl::addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, float minValue, float maxValue, bool sameLine)
+void GuiImpl::addMatrixVar(std::string_view label, glm::mat<C, R, T>& var, float minValue, float maxValue, bool sameLine)
 {
 	std::string labelString{ label };
 	std::string hiddenLabelString{ "##" };
@@ -962,7 +975,7 @@ Gui::UniquePtr Gui::create(uint32_t width, uint32_t height, vk::Format format, c
 	return ui;
 }
 
-float4 Gui::pickUniqueColour(const std::string& key)
+float4 Gui::pickUniqueColour(std::string_view key)
 {
 	union hashedValue
 	{
@@ -970,7 +983,7 @@ float4 Gui::pickUniqueColour(const std::string& key)
 		int32_t i[2];
 	} colour{};
 
-	colour.t = std::hash<std::string>()(key);
+	colour.t = std::hash<const char*>()(key.data());
 
 	return float4(colour.i[0] % 1000 / 2000.f, colour.i[1] % 1000 / 2000.f, (colour.i[0] * colour.i[1]) % 1000 / 2000.f, 1.f);
 }
@@ -1033,7 +1046,6 @@ void Gui::render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex
 		});
 
 	_wrapper->_groupStackSize = 0;
-	_wrapper->_images.clear();
 
 	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 	{
@@ -1069,7 +1081,7 @@ void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Imag
 	}
 }
 
-Gui::Group Gui::Widget::group(const std::string& label, bool beginExpanded)
+Gui::Group Gui::Widget::group(std::string_view label, bool beginExpanded)
 {
 	return Group(_gui, label, beginExpanded);
 }
@@ -1090,7 +1102,7 @@ void Gui::Widget::separator(uint32_t count)
 	}
 }
 
-void Gui::Widget::dummy(const std::string& label, const float2& size, bool sameLine)
+void Gui::Widget::dummy(std::string_view label, const float2& size, bool sameLine)
 {
 	if (_gui)
 	{
@@ -1105,12 +1117,12 @@ void Gui::Widget::rect(const float2& size, const float4& colour, bool filled, bo
 		_gui->_wrapper->addRect(size, colour, filled, sameLine);
 	}
 }
-bool Gui::Widget::dropdown(const std::string& label, const DropdownList& values, uint32_t& var, bool sameLine)
+bool Gui::Widget::dropdown(std::string_view label, const DropdownList& values, uint32_t& var, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addDropdown(label, values, var, sameLine) : false;
 }
 
-bool Gui::Widget::button(const std::string& label, bool sameLine)
+bool Gui::Widget::button(std::string_view label, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addButton(label, sameLine) : false;
 }
@@ -1120,42 +1132,42 @@ bool Gui::Widget::radioButtons(const RadioButtonGroup& buttons, uint32_t& active
 	return _gui ? _gui->_wrapper->addRadioButtons(buttons, activeID) : false;
 }
 
-bool Gui::Widget::direction(const std::string& label, float3& direction)
+bool Gui::Widget::direction(std::string_view label, float3& direction)
 {
 	return _gui ? _gui->_wrapper->addDirection(label, direction) : false;
 }
 
 template<>
-bool Gui::Widget::checkbox<bool>(const std::string& label, bool& var, bool sameLine)
+bool Gui::Widget::checkbox<bool>(std::string_view label, bool& var, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addCheckbox(label, var, sameLine) : false;
 }
 
 template<>
-bool Gui::Widget::checkbox<int>(const std::string& label, int& var, bool sameLine)
+bool Gui::Widget::checkbox<int>(std::string_view label, int& var, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addCheckbox(label, var, sameLine) : false;
 }
 
 
 template<typename T>
-bool Gui::Widget::checkbox(const std::string& label, T& var, bool sameLine)
+bool Gui::Widget::checkbox(std::string_view label, T& var, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addBoolVecVar(label, var, sameLine) : false;
 }
 
-bool Gui::Widget::dragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payloadString)
+bool Gui::Widget::dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString)
 {
 	return _gui ? _gui->_wrapper->addDragDropSource(label, dataLabel, payloadString) : false;
 }
 
-bool Gui::Widget::dragDropDestination(const std::string& label, std::string& payloadString)
+bool Gui::Widget::dragDropDestination(std::string_view label, std::string& payloadString)
 {
 	return _gui ? _gui->_wrapper->addDragDropDest(label, payloadString) : false;
 }
 
 template<typename Vec, typename Type>
-bool Gui::Widget::var(const std::string& label, Vec& var, Type minValue, Type maxValue, Type step, bool sameLine)
+bool Gui::Widget::var(std::string_view label, Vec& var, Type minValue, Type maxValue, Type step, bool sameLine)
 {
 	if constexpr (is_vector_v<Vec> && is_vector_type<Type, Vec>)
 	{
@@ -1167,7 +1179,7 @@ bool Gui::Widget::var(const std::string& label, Vec& var, Type minValue, Type ma
 	}
 }
 
-#define ADD_SCALAR_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, TypeName minValue, TypeName maxValue, TypeName step, bool sameLine);
+#define ADD_SCALAR_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(std::string_view label, TypeName& var, TypeName minValue, TypeName maxValue, TypeName step, bool sameLine);
 
 ADD_SCALAR_VAR_TYPE(int32_t)
 ADD_SCALAR_VAR_TYPE(uint32_t)
@@ -1178,7 +1190,7 @@ ADD_SCALAR_VAR_TYPE(double_t)
 #undef ADD_SCALAR_VAR_TYPE
 
 
-#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, typename TypeName::value_type step, bool sameLine);
+#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(std::string_view label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, typename TypeName::value_type step, bool sameLine);
 
 ADD_VEC_VAR_TYPE(int2)
 ADD_VEC_VAR_TYPE(float2)
@@ -1190,7 +1202,7 @@ ADD_VEC_VAR_TYPE(int2)
 #undef ADD_VEC_VAR_TYPE
 
 template<typename Vec, typename Type>
-bool Gui::Widget::slider(const std::string& label, Vec& var, Type minValue, Type maxValue, bool sameLine)
+bool Gui::Widget::slider(std::string_view label, Vec& var, Type minValue, Type maxValue, bool sameLine)
 {
 	if constexpr (is_vector_v<Vec> && is_vector_type<Type, Vec>)
 	{
@@ -1202,7 +1214,7 @@ bool Gui::Widget::slider(const std::string& label, Vec& var, Type minValue, Type
 	}
 }
 
-#define ADD_SCALAR_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(const std::string& label, TypeName& var, TypeName minValue, TypeName maxValue, bool sameLine);
+#define ADD_SCALAR_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(std::string_view label, TypeName& var, TypeName minValue, TypeName maxValue, bool sameLine);
 
 ADD_SCALAR_SLIDER_TYPE(int32_t)
 ADD_SCALAR_SLIDER_TYPE(uint32_t)
@@ -1212,13 +1224,13 @@ ADD_SCALAR_SLIDER_TYPE(double_t)
 
 #undef ADD_SCALAR_SLIDER_TYPE
 
-#define ADD_VEC_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, bool sameLine);
+#define ADD_VEC_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(std::string_view label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, bool sameLine);
 
 ADD_VEC_SLIDER_TYPE(int2)
 
 #undef ADD_VEC_SLIDER_TYPE
 
-void Gui::Widget::text(const std::string& text, bool sameLine)
+void Gui::Widget::text(std::string_view text, bool sameLine)
 {
 	if (_gui)
 	{
@@ -1226,7 +1238,7 @@ void Gui::Widget::text(const std::string& text, bool sameLine)
 	}
 }
 
-void Gui::Widget::textWrapped(const std::string& text)
+void Gui::Widget::textWrapped(std::string_view text)
 {
 	if (_gui)
 	{
@@ -1234,17 +1246,17 @@ void Gui::Widget::textWrapped(const std::string& text)
 	}
 }
 
-bool Gui::Widget::textbox(const std::string& label, std::string& text, TextFlags flags)
+bool Gui::Widget::textbox(std::string_view label, std::string& text, TextFlags flags)
 {
 	return _gui ? _gui->_wrapper->addTextbox(label, text, 1, flags) : false;
 }
 
-bool Gui::Widget::textboxMultiline(const std::string& label, const std::vector<std::string>& text, std::vector<std::string>& textEntries)
+bool Gui::Widget::textboxMultiline(std::string_view label, const std::vector<std::string>& text, std::vector<std::string>& textEntries)
 {
 	return _gui ? _gui->_wrapper->addMultiTextbox(label, text, textEntries) : false;
 }
 
-void Gui::Widget::tooltip(const std::string& text, bool sameLine)
+void Gui::Widget::tooltip(std::string_view text, bool sameLine)
 {
 	if (_gui)
 	{
@@ -1252,40 +1264,40 @@ void Gui::Widget::tooltip(const std::string& text, bool sameLine)
 	}
 }
 
-bool Gui::Widget::rgbColour(const std::string& label, float3& var, bool sameLine)
+bool Gui::Widget::rgbColour(std::string_view label, float3& var, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addRgbColor(label, var, sameLine) : false;
 }
 
 
-bool Gui::Widget::rgbaColour(const std::string& label, float4& var, bool sameLine)
+bool Gui::Widget::rgbaColour(std::string_view label, float4& var, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addRgbaColor(label, var, sameLine) : false;
 }
 
-void Gui::Widget::image(const std::string& label, const Image& image, float2 size, bool maintainRatio, bool sameLine)
+void Gui::Widget::image(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (_gui)
 	{
-		_gui->_wrapper->addImage(label, image, size, maintainRatio, sameLine);
+		_gui->_wrapper->addImage(label, image, sampler, size, maintainRatio, sameLine);
 	}
 }
 
-void Gui::Widget::imageButton(const std::string& label, const Image& image, float2 size, bool maintainRatio, bool sameLine )
+void Gui::Widget::imageButton(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine )
 {
 	if (_gui)
 	{
-		_gui->_wrapper->addImageButton(label, image, size, maintainRatio, sameLine);
+		_gui->_wrapper->addImageButton(label, image, sampler, size, maintainRatio, sameLine);
 	}
 }
 
 template<typename MatrixType>
-bool Gui::Widget::matrix(const std::string& label, MatrixType& var, float minValue, float maxValue, bool sameLine)
+bool Gui::Widget::matrix(std::string_view label, MatrixType& var, float minValue, float maxValue, bool sameLine)
 {
 	return _gui ? _gui->_wrapper->addMatrixVar(label, var, minValue, maxValue, sameLine) : false;
 }
 
-Gui::Group::Group(Gui* gui, const std::string& label, bool beginExpanded)
+Gui::Group::Group(Gui* gui, std::string_view label, bool beginExpanded)
 {
 	if (gui && gui->_wrapper->beginGroup(label, beginExpanded))
 	{
@@ -1312,7 +1324,7 @@ void Gui::Group::release()
 	}
 }
 
-Gui::Window::Window(Gui* gui, const std::string& label, uint2 size, uint2 position, Gui::WindowFlags flags)
+Gui::Window::Window(Gui* gui, std::string_view label, uint2 size, uint2 position, Gui::WindowFlags flags)
 {
 	auto open = true;
 	if (gui->_wrapper->pushWindow(label, open, size, position, flags))
@@ -1321,7 +1333,7 @@ Gui::Window::Window(Gui* gui, const std::string& label, uint2 size, uint2 positi
 	}
 }
 
-Gui::Window::Window(Gui* gui, const std::string& label, bool& open, uint2 size, uint2 position, Gui::WindowFlags flags)
+Gui::Window::Window(Gui* gui, std::string_view label, bool& open, uint2 size, uint2 position, Gui::WindowFlags flags)
 {
 	if (gui->_wrapper->pushWindow(label, open, size, position, flags))
 	{

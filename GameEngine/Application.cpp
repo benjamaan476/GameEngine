@@ -121,6 +121,10 @@ void Application::mainLoop()
 			auto count = std::format("counter = {}", counter);
 			wind.text(count, true);
 
+
+			wind.image("Image", textureImage, textureSampler);
+
+
 			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		}
 
@@ -1116,6 +1120,8 @@ void Application::recreateSwapChain()
 	createSwapchain();
 	createDepthResources();
 	createFramebuffers();
+
+	_gui->onWindowResize(width, height, swapchainImages);
 
 }
 

@@ -73,41 +73,41 @@ public:
 	class Widget
 	{
 	public:
-		Group group(const std::string& label, bool beginExpanded = false);
+		Group group(std::string_view label, bool beginExpanded = false);
 
 		void indent(float i);
 		void separator(uint32_t count = 1);
-		void dummy(const std::string& label, const float2& size, bool sameLine = false);
+		void dummy(std::string_view label, const float2& size, bool sameLine = false);
 		void rect(const float2& size, const float4& colour = { 1.f, 1.f, 1.f, 1.f }, bool filled = false, bool sameLine = false);
-		bool dropdown(const std::string& label, const DropdownList& values, uint32_t& var, bool sameLine = false);
-		bool button(const std::string& label, bool sameLine = false);
+		bool dropdown(std::string_view label, const DropdownList& values, uint32_t& var, bool sameLine = false);
+		bool button(std::string_view label, bool sameLine = false);
 		bool radioButtons(const RadioButtonGroup& buttons, uint32_t& activeId);
-		bool direction(const std::string& label, float3& direction);
+		bool direction(std::string_view label, float3& direction);
 		template<typename T>
-		bool checkbox(const std::string& label, T& var, bool sameLine = false);
-		bool dragDropSource(const std::string& label, const std::string& dataLabel, const std::string& payload);
-		bool dragDropDestination(const std::string& dataLabel, std::string& payload);
-		void text(const std::string& text, bool sameLine = false);
-		void textWrapped(const std::string& text);
-		bool textbox(const std::string& label, std::string& text, TextFlags flags = TextFlags::Empty);
-		bool textboxMultiline(const std::string& label, const std::vector<std::string>& textLabels, std::vector<std::string>& textEntries);
-		void tooltip(const std::string& text, bool sameLine = false);
+		bool checkbox(std::string_view label, T& var, bool sameLine = false);
+		bool dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payload);
+		bool dragDropDestination(std::string_view dataLabel, std::string& payload);
+		void text(std::string_view text, bool sameLine = false);
+		void textWrapped(std::string_view text);
+		bool textbox(std::string_view label, std::string& text, TextFlags flags = TextFlags::Empty);
+		bool textboxMultiline(std::string_view label, const std::vector<std::string>& textLabels, std::vector<std::string>& textEntries);
+		void tooltip(std::string_view text, bool sameLine = false);
 
-		bool rgbColour(const std::string& label, float3& var, bool sameLine = false);
-		bool rgbaColour(const std::string& label, float4& var, bool sameLine = false);
+		bool rgbColour(std::string_view label, float3& var, bool sameLine = false);
+		bool rgbaColour(std::string_view label, float4& var, bool sameLine = false);
 
-		void image(const std::string& label, const Image& image, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
-		void imageButton(const std::string& label, const Image& image, float2 size, bool maintainRatio = true, bool sameLine = false);
+		void image(std::string_view label, const Image& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
+		void imageButton(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
 
-
-		template<typename Vec, typename Type>
-		bool var(const std::string& label, Vec& var, Type minValue = std::numeric_limits<Type>::lowest(), Type maxValue = std::numeric_limits<Type>::max(), Type step = std::is_floating_point<Type>::value ? 0.001f : 1, bool sameLine = false);
 
 		template<typename Vec, typename Type>
-		bool slider(const std::string& label, Vec& var, Type minValue = std::numeric_limits<Type>::lowest() / 2, Type maxValue = std::numeric_limits<Type>::max() / 2, bool sameLine = false);
+		bool var(std::string_view label, Vec& var, Type minValue = std::numeric_limits<Type>::lowest(), Type maxValue = std::numeric_limits<Type>::max(), Type step = std::is_floating_point<Type>::value ? 0.001f : 1, bool sameLine = false);
+
+		template<typename Vec, typename Type>
+		bool slider(std::string_view label, Vec& var, Type minValue = std::numeric_limits<Type>::lowest() / 2, Type maxValue = std::numeric_limits<Type>::max() / 2, bool sameLine = false);
 
 		template<typename MatrixType>
-		bool matrix(const std::string& label, MatrixType& var, float minValue = -FLT_MAX, float maxValue = FLT_MAX, bool sameLine = false);
+		bool matrix(std::string_view label, MatrixType& var, float minValue = -FLT_MAX, float maxValue = FLT_MAX, bool sameLine = false);
 
 
 		Gui* gui() const { return _gui; }
@@ -121,7 +121,7 @@ public:
 	{
 	public:
 		Group() = default;
-		Group(Gui* gui, const std::string& label, bool beginExpanded = false);
+		Group(Gui* gui, std::string_view label, bool beginExpanded = false);
 		Group(const Widget& widget, const std::string label, bool beginExpanded = false);
 
 		bool isOpen() const;
@@ -135,10 +135,10 @@ public:
 	class Window : public Widget
 	{
 	public:
-		Window(Gui* gui, const std::string& name, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
-		Window(Gui* gui, const std::string& name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
-		Window(const Widget& widget, const std::string& name, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
-		Window(const Widget& widget, const std::string& name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
+		Window(Gui* gui, std::string_view name, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
+		Window(Gui* gui, std::string_view name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
+		Window(const Widget& widget, std::string_view name, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
+		Window(const Widget& widget, std::string_view name, bool& open, uint2 size = { 0, 0 }, uint2 position = { 0, 0 }, WindowFlags flags = WindowFlags::Default);
 
 		~Window();
 
@@ -151,11 +151,11 @@ public:
 	static UniquePtr create(uint32_t width, uint32_t height, vk::Format format, const std::vector<Image>& swapchainImages, float scaleFactor = 1.f);
 	~Gui();
 
-	static float4 pickUniqueColour(const std::string& key);
+	static float4 pickUniqueColour(std::string_view key);
 
-	//void addFont(const std::string& name, const std::filesystem::path& path);
+	//void addFont(std::string_view name, const std::filesystem::path& path);
 
-	//void setActiveFont(const std::string& font);
+	//void setActiveFont(std::string_view font);
 
 	//ImFont* getFont(std::string f = "");
 
