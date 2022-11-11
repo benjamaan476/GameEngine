@@ -15,7 +15,6 @@ CommandBuffer::CommandBuffer(size_t bufferCount)
 	{
 		ENGINE_ASSERT(commandBuffer != vk::CommandBuffer{}, "Failed to create command buffer");
 	}
-
 }
 
 void CommandBuffer::record(uint32_t bufferIndex, uint32_t imageIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer)

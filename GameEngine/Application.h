@@ -18,11 +18,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <chrono>
-
-#include <imgui.h>
-#include <imgui_impl_vulkan.h>
-
 
 struct QueueFamilyIndices
 {
@@ -92,6 +87,8 @@ public:
 		const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
 		void* userData);
 
+	static Application& get() { return *_instance; }
+	auto& getWindow() const { return _window; }
 private:
 
 	const static inline std::filesystem::path& getExecutableDirectory()
@@ -211,9 +208,11 @@ private:
 	vk::ShaderModule createShaderModule(const std::vector<char>& code);
 
 	static std::vector<char> readShader(const std::filesystem::path& file);
+
+	static inline Application* _instance = nullptr;
 private:
 
-	Window::SharedPtr window;
+	Window::SharedPtr _window;
 
 	VkDebugUtilsMessengerEXT debugMessenger;
 	vk::SurfaceKHR surface;
@@ -225,15 +224,13 @@ private:
 	vk::ShaderModule vertShaderModule;
 	vk::ShaderModule fragShaderModule;
 	vk::RenderPass renderPass;
-	vk::RenderPass imguiRenderPass;
 	vk::DescriptorSetLayout descriptorSetLayout;
-	vk::DescriptorPool imguiPool;
 	vk::DescriptorPool descriptorPool;
 	std::vector<vk::DescriptorSet> descriptorSets;
 	vk::PipelineLayout pipelineLayout;
 	vk::Pipeline graphicsPipeline;
 	std::vector<vk::Framebuffer> swapChainFramebuffers;
-	std::vector<vk::Framebuffer> imguiFramebuffers;
+
 	
 	Buffer vertexBuffer;
 	Buffer indexBuffer;
@@ -247,7 +244,6 @@ private:
 
 
 	CommandBuffer commandBuffers;
-	CommandBuffer imguiCommandBuffers;
 	std::vector<vk::Semaphore> imageAvailableSemaphores;
 	std::vector<vk::Semaphore> renderFinishedSemaphores;
 	std::vector<vk::Fence> inFlightFences;
@@ -286,11 +282,11 @@ private:
 
 		bool onRender(Gui* gui)
 		{
-			auto window = Gui::Window(gui, "Board Properties");
+			auto _window = Gui::Window(gui, "Board Properties");
 			auto updated = false;
-			updated |= window.rgbaColour("Primary Colour", primaryColour);
-			updated |= window.rgbaColour("Secondary Colour", secondaryColour);
-			updated |= window.slider("Board Size", size, 0, 20);
+			updated |= _window.rgbaColour("Primary Colour", primaryColour);
+			updated |= _window.rgbaColour("Secondary Colour", secondaryColour);
+			updated |= _window.slider("Board Size", size, 2, 20);
 			return updated;
 		}
 	} boardProperties;

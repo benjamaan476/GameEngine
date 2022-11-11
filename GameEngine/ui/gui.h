@@ -4,10 +4,6 @@
 #include "../renderer/Image.h"
 #include "../renderer/CommandBuffer.h"
 
-#include <imgui.h>
-#include <filesystem>
-
-
 class GuiImpl;
 
 // Helper to check if a class is a vector
@@ -16,6 +12,12 @@ struct is_vector : std::false_type {};
 
 template<typename T>
 struct is_vector<T, std::void_t<typename T::value_type>> : std::true_type {};
+
+template<typename T>
+concept is_vector_v = is_vector<T, std::void_t<typename T::value_type>>::value;
+
+template<typename Type, typename V>
+concept is_vector_type = std::is_same<Type, typename V::value_type>::value;
 
 
 class Gui
@@ -97,18 +99,12 @@ public:
 		void image(const std::string& label, const Image& image, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
 		void imageButton(const std::string& label, const Image& image, float2 size, bool maintainRatio = true, bool sameLine = false);
 
-		template<typename T, std::enable_if_t<!is_vector<T>::value, bool> = true>
-		bool var(const std::string& label, T& var, T minValue = std::numeric_limits<T>::lowest(), T maxValue = std::numeric_limits<T>::max(), T step = std::is_floating_point_v<T> ? 0.001f : 1.f, bool sameLine = false);
 
-		template<typename T, std::enable_if_t<!is_vector<T>::value, bool> = true>
-		bool slider(const std::string& label, T& var, T minValue = std::numeric_limits<T>::lowest() / 2, T maxValue = std::numeric_limits<T>::max() / 2, bool sameLine = false);
+		template<typename Vec, typename Type>
+		bool var(const std::string& label, Vec& var, Type minValue = std::numeric_limits<Type>::lowest(), Type maxValue = std::numeric_limits<Type>::max(), Type step = std::is_floating_point<Type>::value ? 0.001f : 1, bool sameLine = false);
 
-		template<typename T, std::enable_if_t<is_vector<T>::value, bool> = true>
-		bool var(const std::string& label, T& var, typename T::value_type minValue = std::numeric_limits<typename T::value_type>::lowest(), typename T::value_type maxValue = std::numeric_limits<typename T::value_type>::max(), typename T::value_type step = std::is_floating_point_v<T> ? 0.001f : 1.f, bool sameLine = false);
-
-		template<typename T, std::enable_if_t<is_vector<T>::value, bool> = true>
-		bool slider(const std::string& label, T& var, typename T::value_type minVal = std::numeric_limits<typename T::value_type>::lowest() / 2,
-			typename T::value_type maxVal = std::numeric_limits<typename T::value_type>::max() / 2, bool sameLine = false, const char* displayFormat = nullptr);
+		template<typename Vec, typename Type>
+		bool slider(const std::string& label, Vec& var, Type minValue = std::numeric_limits<Type>::lowest() / 2, Type maxValue = std::numeric_limits<Type>::max() / 2, bool sameLine = false);
 
 		template<typename MatrixType>
 		bool matrix(const std::string& label, MatrixType& var, float minValue = -FLT_MAX, float maxValue = FLT_MAX, bool sameLine = false);
@@ -152,26 +148,32 @@ public:
 		void windowPosition(uint32_t x, uint32_t y);
 		void windowSize(uint32_t x, uint32_t y);
 	};
-	static UniquePtr create(uint32_t width, uint32_t height, float scaleFactor = 1.f);
+	static UniquePtr create(uint32_t width, uint32_t height, vk::Format format, const std::vector<Image>& swapchainImages, float scaleFactor = 1.f);
 	~Gui();
 
 	static float4 pickUniqueColour(const std::string& key);
 
-	void addFont(const std::string& name, const std::filesystem::path& path);
+	//void addFont(const std::string& name, const std::filesystem::path& path);
 
-	void setActiveFont(const std::string& font);
+	//void setActiveFont(const std::string& font);
 
-	ImFont* getFont(std::string f = "");
+	//ImFont* getFont(std::string f = "");
 
 	void begin();
-	void render(CommandBuffer buffer, vk::RenderPass renderPass, std::vector<vk::Framebuffer>& framebuffer, vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex);
+	void demo(bool showDemo);
+	void render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex);
+	const auto& getCommandBuffer(uint32_t currentFrame) const noexcept { return _uiCommandBuffers[currentFrame]; }
 	static void setGlobalScaling(float scale);
-	void onWindowResize(uint32_t width, uint32_t height);
+	void onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& swapchainImages);
 
 private:
 	Gui() = default;
 	GuiImpl* _wrapper = nullptr;
 
+	static inline vk::RenderPass _uiRenderPass{};
+	static inline vk::DescriptorPool _uiPool{};
+	static inline std::vector<vk::Framebuffer> _uiFramebuffers{};
+	static inline CommandBuffer _uiCommandBuffers{};
 };
 
 ENUM_CLASS_OPERATORS(Gui::WindowFlags)

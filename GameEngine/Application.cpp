@@ -9,14 +9,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
-
 Application::Application(std::string_view name, uint32_t width, uint32_t height)
 {
 	Log::Init();
 	LOG_INFO("Initialized");
+	_instance = this;
 	initWindow(name, width, height);
 }
 
@@ -54,104 +51,12 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(VkDebugUtilsMessageSev
 void Application::initWindow(std::string_view name, uint32_t width, uint32_t height)
 {
 	WindowProperties windowProperties{ name.data(), width, height};
-	window = Window::create(windowProperties);
+	_window = Window::create(windowProperties);
 }
 
 void Application::initGui()
 {
-
-	vk::AttachmentDescription imguiAttachment{};
-	imguiAttachment
-		.setFormat(swapchainFormat)
-		.setSamples(vk::SampleCountFlagBits::e1)
-		.setLoadOp(vk::AttachmentLoadOp::eLoad)
-		.setStoreOp(vk::AttachmentStoreOp::eStore)
-		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setInitialLayout(vk::ImageLayout::eColorAttachmentOptimal)
-		.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
-
-	vk::AttachmentReference imguiColourAttachment{};
-	imguiColourAttachment
-		.setAttachment(0)
-		.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
-
-	vk::SubpassDescription imguiSupass{};
-	imguiSupass
-		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
-		.setColorAttachments(imguiColourAttachment);
-		
-	vk::SubpassDependency imguiSubpassDependency{};
-	imguiSubpassDependency
-		.setSrcSubpass(VK_SUBPASS_EXTERNAL)
-		.setDstSubpass(0)
-		.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
-		.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
-		//.setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite)
-		.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
-
-	vk::RenderPassCreateInfo imguiInfo{};
-	imguiInfo
-		.setAttachments(imguiAttachment)
-		.setSubpasses(imguiSupass)
-		.setDependencies(imguiSubpassDependency);
-
-	imguiRenderPass = state.device.createRenderPass(imguiInfo);
-	ENGINE_ASSERT(imguiRenderPass != vk::RenderPass{}, "Failed to create imgui render pass");
-
-	imguiCommandBuffers = CommandBuffer(swapChainFramebuffers.size());
-
-	imguiFramebuffers.resize(swapChainFramebuffers.size());
-	for (auto i = 0; i < swapChainFramebuffers.size(); i++)
-	{
-		vk::FramebufferCreateInfo imguiFrameBufferInfo{};
-		imguiFrameBufferInfo
-			.setRenderPass(imguiRenderPass)
-			.setAttachments(swapchainImages[i].view)
-			.setWidth(swapchainExtent.width)
-			.setHeight(swapchainExtent.height)
-			.setLayers(1);
-
-		imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
-	}
-
-	_gui = Gui::create(swapchainExtent.width, swapchainExtent.height);
-
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-	ImGui_ImplGlfw_InitForVulkan(window->getWindow(), true);
-
-	ImGui_ImplVulkan_InitInfo initInfo{};
-	initInfo.Instance = state.instance;
-	initInfo.PhysicalDevice = state.physicalDevice;
-	initInfo.Device = state.device;
-	initInfo.Queue = state.graphicsQueue;
-	initInfo.QueueFamily = state.queueFamily;
-	initInfo.DescriptorPool = imguiPool;
-	initInfo.Subpass = 0;
-	initInfo.MinImageCount = 2;
-	initInfo.ImageCount = (uint32_t)swapchainImages.size();
-	initInfo.Allocator = nullptr;
-	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-	initInfo.CheckVkResultFn = [](VkResult err)
-	{   
-		if (err == 0)
-			return;
-	fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
-	if (err < 0)
-		abort();
-	};
-	auto sucess = ImGui_ImplVulkan_Init(&initInfo, imguiRenderPass);
-
-	state.device.resetCommandPool(state.commandPool);
-
-	OneTimeCommandBuffer command{
-		[](vk::CommandBuffer buffer)
-		{
-			ImGui_ImplVulkan_CreateFontsTexture(buffer);
-		}};
-
-	ImGui_ImplVulkan_DestroyFontUploadObjects();
+	_gui = Gui::create(swapchainExtent.width, swapchainExtent.height, swapchainFormat, swapchainImages);
 }
 
 void Application::initVulkan()
@@ -182,25 +87,17 @@ void Application::initVulkan()
 void Application::mainLoop()
 {
 	bool show_demo_window = false;
-	bool show_another_window = false;
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	float4 clear_color{ 0.45f, 0.55f, 0.60f, 1.00f };
 	int counter = 0;
 
-	while (!window->isRunning())
+	while (!_window->isRunning())
 	{
-		window->OnUpdate();
+		_window->OnUpdate();
 		
 		{
-			// Start the Dear ImGui frame
-			ImGui_ImplVulkan_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
 			_gui->begin();
 
-			if (show_demo_window)
-			{
-				ImGui::ShowDemoWindow(&show_demo_window);
-			}
-
+			_gui->demo(show_demo_window);
 			
 			auto changed = boardProperties.onRender(_gui.get());
 
@@ -214,7 +111,6 @@ void Application::mainLoop()
 
 			wind.text("This is some useful text.");               // Display some text (you can use a format strings too)
 			wind.checkbox("Demo Window", show_demo_window);      // Edit bools storing our window open/close state
-			wind.checkbox("Another Window", show_another_window);
 
 			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
 			wind.rgbaColour("clear color", clearColor); // Edit 3 floats representing a color
@@ -225,10 +121,7 @@ void Application::mainLoop()
 			auto count = std::format("counter = {}", counter);
 			wind.text(count, true);
 
-			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-			//ImGui::End();
-
-
+			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		}
 
 		drawFrame();
@@ -310,7 +203,7 @@ vk::Extent2D Application::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& cap
 	}
 	else
 	{
-		auto [width, height] = window->getFramebufferSize();
+		auto [width, height] = _window->getFramebufferSize();
 		vk::Extent2D actualExtent =
 		{
 			width, 
@@ -369,7 +262,7 @@ void Application::createInstance()
 	vk::InstanceCreateInfo createInfo{};
 	createInfo.setPApplicationInfo(&info);
 
-	auto extensions = window->GetRequiredExtensions();
+	auto extensions = _window->GetRequiredExtensions();
 
 	if (enableValidationLayers)
 	{
@@ -397,7 +290,7 @@ void Application::createInstance()
 
 void Application::createSurface()
 {
-	surface = window->createSurface(state.instance, nullptr);
+	surface = _window->createSurface(state.instance, nullptr);
 }
 
 void Application::pickPhysicalDevice()
@@ -1062,10 +955,11 @@ void Application::createDescriptorPool()
 {
 	const uint32_t descriptorCount = 1000;
 
-#define DESCRIPTOR_POOL(name, type) \
-vk::DescriptorPoolSize name{};		\
-name.setType(type);					\
-name.setDescriptorCount(descriptorCount)
+#define DESCRIPTOR_POOL(name, type)			\
+	vk::DescriptorPoolSize name{};			\
+	name									\
+		.setType(type) 						\
+		.setDescriptorCount(descriptorCount)
 
 
 	DESCRIPTOR_POOL(sampler, vk::DescriptorType::eSampler);
@@ -1080,17 +974,6 @@ name.setDescriptorCount(descriptorCount)
 	DESCRIPTOR_POOL(storageDynamic, vk::DescriptorType::eStorageBufferDynamic);
 	DESCRIPTOR_POOL(input, vk::DescriptorType::eInputAttachment);
 
-
-	auto pools = { sampler, combinedSample, sampled, storageImage, uniformTexel, storageTexel, uniform, storage, uniformDynamic, storageDynamic, input };
-
-	vk::DescriptorPoolCreateInfo poolInfo{};
-	//poolInfo.setPoolSizeCount(1);
-	poolInfo.setPoolSizes(pools);
-	poolInfo.setMaxSets(descriptorCount * (uint32_t)pools.size());
-	poolInfo.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
-	imguiPool = state.device.createDescriptorPool(poolInfo);
-	ENGINE_ASSERT(imguiPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
-
 	auto descriptorPools = { uniform, combinedSample };
 
 	vk::DescriptorPoolCreateInfo info{};
@@ -1098,7 +981,6 @@ name.setDescriptorCount(descriptorCount)
 	info.setMaxSets(MaxFramesInFlight);
 	descriptorPool = state.device.createDescriptorPool(info);
 	ENGINE_ASSERT(descriptorPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
-
 }
 
 void Application::createDescriptorSets()
@@ -1220,12 +1102,12 @@ void Application::updateUniformBuffer(uint32_t currentImage)
 
 void Application::recreateSwapChain()
 {
-	auto [width, height] = window->getFramebufferSize();
+	auto [width, height] = _window->getFramebufferSize();
 
 	while (width == 0 || height == 0)
 	{
-		std::tie(width, height) = window->getFramebufferSize();
-		window->waitEvents();
+		std::tie(width, height) = _window->getFramebufferSize();
+		_window->waitEvents();
 	}
 	state.device.waitIdle();
 
@@ -1235,21 +1117,6 @@ void Application::recreateSwapChain()
 	createDepthResources();
 	createFramebuffers();
 
-	imguiFramebuffers.resize(swapChainFramebuffers.size());
-	for (auto i = 0; i < swapChainFramebuffers.size(); i++)
-	{
-		vk::FramebufferCreateInfo imguiFrameBufferInfo{};
-		imguiFrameBufferInfo
-			.setRenderPass(imguiRenderPass)
-			.setAttachments(swapchainImages[i].view)
-			.setWidth(swapchainExtent.width)
-			.setHeight(swapchainExtent.height)
-			.setLayers(1);
-
-		imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
-	}
-
-	ImGui_ImplVulkan_SetMinImageCount((uint32_t)swapchainImages.size());
 }
 
 void Application::drawFrame() 
@@ -1319,32 +1186,7 @@ void Application::drawFrame()
 			commandBuffer.endRenderPass();
 		});
 
-	_gui->render(imguiCommandBuffers, imguiRenderPass, imguiFramebuffers, swapchainExtent, currentFrame, imageIndex);
-
-	//imguiCommandBuffers.record(currentFrame,
-	//	[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex)
-	//	{
-	//		vk::ClearValue clearColour;
-	//		clearColour.color.setFloat32({ 0.f, 0.f, 0.f, 1.f });
-
-	//		auto clearValues = { clearColour };
-
-	//		vk::RenderPassBeginInfo imguiRenderPassInfo{};
-	//		imguiRenderPassInfo
-	//			.setRenderPass(imguiRenderPass)
-	//			.setFramebuffer(imguiFramebuffers[imageIndex])
-	//			.setRenderArea(vk::Rect2D({ 0, 0 }, swapchainExtent))
-	//			.setClearValues(clearValues);
-
-	//		commandBuffer.beginRenderPass(imguiRenderPassInfo, vk::SubpassContents::eInline);
-
-
-	//		auto drawData = ImGui::GetDrawData();
-	//		ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
-
-	//		commandBuffer.endRenderPass();
-
-	//	});
+	_gui->render(swapchainExtent, currentFrame, imageIndex);
 
 	vk::SubmitInfo submitInfo{};
 	
@@ -1355,7 +1197,7 @@ void Application::drawFrame()
 	submitInfo.setWaitSemaphores(waitSemaphore);
 	submitInfo.setWaitDstStageMask(waitStages);
 
-	auto commandBuffers = { commandBuffer, imguiCommandBuffers[currentFrame] };
+	auto commandBuffers = { commandBuffer, _gui->getCommandBuffer(currentFrame)};
 	submitInfo.setCommandBuffers(commandBuffers);
 	
 	//submitInfo.setSignalSemaphoreCount(1);
@@ -1447,17 +1289,10 @@ std::vector<Image> Application::getSwapchainImages(vk::SwapchainKHR swapchain)
 
 void Application::destroyUi()
 {
-	for (auto& framebuffer : imguiFramebuffers)
-	{
-		state.device.destroyFramebuffer(framebuffer);
-	}
-
-	state.device.destroyDescriptorPool(imguiPool);
-	state.device.destroyRenderPass(imguiRenderPass);
-
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
+	auto ui = _gui.release();
+	delete ui;
 }
+
 void Application::cleanup()
 {
 	destroyUi();
@@ -1503,7 +1338,7 @@ void Application::cleanup()
 
 void Application::cleanupSwapchain()
 {
-	for (auto framebuffer : swapChainFramebuffers)
+	for (auto& framebuffer : swapChainFramebuffers)
 	{
 		state.device.destroyFramebuffer(framebuffer);
 	}

@@ -1,7 +1,11 @@
 #include "gui.h"
+#include "../Application.h"
+
+#include <GLFW/glfw3.h>
 
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
+#include <imgui_impl_glfw.h>
 
 #include <span>
 
@@ -584,7 +588,7 @@ bool GuiImpl::addScalarVar(const std::string& label, T& var, T minVal, T maxVal,
 	{
 		return addScalarVarHelper(label, var, ImGuiDataType_U64, minVal, maxVal, step, sameLine, displayFormat);
 	}
-	else if constexpr (std::is_same<T, float_t>::value)
+	else if constexpr (std::is_same<T, float>::value)
 	{
 		return addScalarVarHelper(label, var, ImGuiDataType_Float, minVal, maxVal, step, sameLine, displayFormat);
 	}
@@ -596,7 +600,7 @@ bool GuiImpl::addScalarVar(const std::string& label, T& var, T minVal, T maxVal,
 	{
 		return addScalarVarHelper(label, var, ImGuiDataType_Double, minVal, maxVal, step, sameLine, displayFormat);
 	}
-	else
+	else 
 	{
 		static_assert(foobar<T>::value, "Unsupported data type");
 	}
@@ -644,7 +648,7 @@ bool GuiImpl::addScalarSlider(const std::string& label, T& var, T minVal, T maxV
 	{
 		return addScalarSliderHelper(label, var, ImGuiDataType_U64, minVal, maxVal, sameLine, displayFormat);
 	}
-	else if constexpr (std::is_same<T, double>::value)
+	else if constexpr (std::is_same<T, double_t>::value)
 	{
 		return addScalarSliderHelper(label, var, ImGuiDataType_Double, minVal, maxVal, sameLine, displayFormat);
 	}
@@ -743,7 +747,7 @@ bool GuiImpl::addVecSlider(const std::string& label, T& var, typename T::value_t
 	}
 	else
 	{
-		static_assert(foobar<T>::value, "Unsupported data type");
+		static_assert(foobar<T>, "Unsupported data type");
 	}
 }
 
@@ -805,15 +809,156 @@ void GuiImpl::addMatrixVar(const std::string& label, glm::mat<C, R, T>& var, flo
 
 Gui::~Gui()
 {
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+
+	for (auto& framebuffer : _uiFramebuffers)
+	{
+		state.device.destroyFramebuffer(framebuffer);
+	}
+
+	state.device.destroyDescriptorPool(_uiPool);
+	state.device.destroyRenderPass(_uiRenderPass);
+
 	ImGui::DestroyContext();
 }
 
-Gui::UniquePtr Gui::create(uint32_t width, uint32_t height, float scaleFactor)
+Gui::UniquePtr Gui::create(uint32_t width, uint32_t height, vk::Format format, const std::vector<Image>& swapchainImages, float scaleFactor)
 {
 	auto ui = std::unique_ptr<Gui>(new Gui);
 	ui->_wrapper = new GuiImpl;
 	ui->_wrapper->init(ui.get(), scaleFactor);
-	ui->onWindowResize(width, height);
+
+	auto& app = Application::get();
+	auto& window = app.getWindow();
+
+	vk::AttachmentDescription imguiAttachment{};
+	imguiAttachment
+		.setFormat(format)
+		.setSamples(vk::SampleCountFlagBits::e1)
+		.setLoadOp(vk::AttachmentLoadOp::eLoad)
+		.setStoreOp(vk::AttachmentStoreOp::eStore)
+		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+		.setInitialLayout(vk::ImageLayout::eColorAttachmentOptimal)
+		.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+
+	vk::AttachmentReference imguiColourAttachment{};
+	imguiColourAttachment
+		.setAttachment(0)
+		.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+
+	vk::SubpassDescription imguiSupass{};
+	imguiSupass
+		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
+		.setColorAttachments(imguiColourAttachment);
+
+	vk::SubpassDependency imguiSubpassDependency{};
+	imguiSubpassDependency
+		.setSrcSubpass(VK_SUBPASS_EXTERNAL)
+		.setDstSubpass(0)
+		.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
+		.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
+		//.setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite)
+		.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+
+	vk::RenderPassCreateInfo imguiInfo{};
+	imguiInfo
+		.setAttachments(imguiAttachment)
+		.setSubpasses(imguiSupass)
+		.setDependencies(imguiSubpassDependency);
+
+	_uiRenderPass = state.device.createRenderPass(imguiInfo);
+	ENGINE_ASSERT(_uiRenderPass != vk::RenderPass{}, "Failed to create imgui render pass");
+
+	_uiCommandBuffers = CommandBuffer(swapchainImages.size());
+
+	//_imguiFramebuffers.resize(swapchainImages.size());
+	//for (auto i = 0; i < swapchainImages.size(); i++)
+	//{
+	//	vk::FramebufferCreateInfo imguiFrameBufferInfo{};
+	//	imguiFrameBufferInfo
+	//		.setRenderPass(_imguiRenderPass)
+	//		.setAttachments(swapchainImages[i].view)
+	//		.setWidth(width)
+	//		.setHeight(height)
+	//		.setLayers(1);
+
+	//	_imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
+	//}
+	const uint32_t descriptorCount = 1000;
+
+#define DESCRIPTOR_POOL(name, type)			\
+	vk::DescriptorPoolSize name{};			\
+	name									\
+		.setType(type) 						\
+		.setDescriptorCount(descriptorCount)
+
+
+	DESCRIPTOR_POOL(sampler, vk::DescriptorType::eSampler);
+	DESCRIPTOR_POOL(combinedSample, vk::DescriptorType::eCombinedImageSampler);
+	DESCRIPTOR_POOL(sampled, vk::DescriptorType::eSampledImage);
+	DESCRIPTOR_POOL(storageImage, vk::DescriptorType::eStorageImage);
+	DESCRIPTOR_POOL(uniformTexel, vk::DescriptorType::eUniformTexelBuffer);
+	DESCRIPTOR_POOL(storageTexel, vk::DescriptorType::eStorageTexelBuffer);
+	DESCRIPTOR_POOL(uniform, vk::DescriptorType::eUniformBuffer);
+	DESCRIPTOR_POOL(storage, vk::DescriptorType::eStorageBuffer);
+	DESCRIPTOR_POOL(uniformDynamic, vk::DescriptorType::eUniformBufferDynamic);
+	DESCRIPTOR_POOL(storageDynamic, vk::DescriptorType::eStorageBufferDynamic);
+	DESCRIPTOR_POOL(input, vk::DescriptorType::eInputAttachment);
+
+
+	auto pools = { sampler, combinedSample, sampled, storageImage, uniformTexel, storageTexel, uniform, storage, uniformDynamic, storageDynamic, input };
+
+	vk::DescriptorPoolCreateInfo poolInfo{};
+	poolInfo
+		.setPoolSizes(pools)
+		.setMaxSets(descriptorCount * (uint32_t)pools.size())
+		.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
+
+	_uiPool = state.device.createDescriptorPool(poolInfo);
+	ENGINE_ASSERT(_uiPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
+
+	ImGui_ImplGlfw_InitForVulkan(window->getWindow(), true);
+
+
+	ImGui_ImplVulkan_InitInfo initInfo{};
+	initInfo.Instance = state.instance;
+	initInfo.PhysicalDevice = state.physicalDevice;
+	initInfo.Device = state.device;
+	initInfo.Queue = state.graphicsQueue;
+	initInfo.QueueFamily = state.queueFamily;
+	initInfo.DescriptorPool = _uiPool;
+	initInfo.Subpass = 0;
+	initInfo.MinImageCount = 2;
+	initInfo.ImageCount = (uint32_t)swapchainImages.size();
+	initInfo.Allocator = nullptr;
+	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	initInfo.CheckVkResultFn = [](VkResult err)
+	{
+		if (err == 0)
+			return;
+		fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+		if (err < 0)
+			abort();
+	};
+
+
+	auto sucess = ImGui_ImplVulkan_Init(&initInfo, _uiRenderPass);
+
+	state.device.resetCommandPool(state.commandPool);
+
+	OneTimeCommandBuffer command{
+		[](vk::CommandBuffer buffer)
+		{
+			ImGui_ImplVulkan_CreateFontsTexture(buffer);
+		} };
+
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+	ui->onWindowResize(width, height, swapchainImages);
+
+
 	return ui;
 }
 
@@ -832,7 +977,19 @@ float4 Gui::pickUniqueColour(const std::string& key)
 
 void Gui::begin()
 {
+	// Start the Dear ImGui frame
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+
 	ImGui::NewFrame();
+}
+
+void Gui::demo(bool showDemo)
+{
+	if (showDemo)
+	{
+		ImGui::ShowDemoWindow(&showDemo);
+	}
 }
 
 void Gui::setGlobalScaling(float scale)
@@ -842,7 +999,7 @@ void Gui::setGlobalScaling(float scale)
 	ImGui::GetStyle().ScaleAllSizes(scale);
 }
 
-void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, std::vector<vk::Framebuffer>& framebuffer, vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex)
+void Gui::render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex)
 {
 	while (_wrapper->_groupStackSize)
 	{
@@ -851,7 +1008,7 @@ void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, std::vector<vk
 
 	ImGui::Render();
 
-	buffer.record(currentFrame, imageIndex,
+	_uiCommandBuffers.record(currentFrame, imageIndex,
 		[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex)
 		{
 			vk::ClearValue clearColour;
@@ -861,8 +1018,8 @@ void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, std::vector<vk
 
 			vk::RenderPassBeginInfo imguiRenderPassInfo{};
 			imguiRenderPassInfo
-				.setRenderPass(renderPass)
-				.setFramebuffer(framebuffer[imageIndex])
+				.setRenderPass(_uiRenderPass)
+				.setFramebuffer(_uiFramebuffers[imageIndex])
 				.setRenderArea(vk::Rect2D({ 0, 0 }, extent))
 				.setClearValues(clearValues);
 
@@ -873,7 +1030,6 @@ void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, std::vector<vk
 			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
 
 			commandBuffer.endRenderPass();
-
 		});
 
 	_wrapper->_groupStackSize = 0;
@@ -886,11 +1042,31 @@ void Gui::render(CommandBuffer buffer, vk::RenderPass renderPass, std::vector<vk
 	}
 }
 
-void Gui::onWindowResize(uint32_t width, uint32_t height)
+void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& swapchainImages)
 {
 	auto& io = ImGui::GetIO();
 	io.DisplaySize.x = (float)width;
 	io.DisplaySize.y = (float)height;
+
+	for (auto& framebuffer : _uiFramebuffers)
+	{
+		state.device.destroyFramebuffer(framebuffer);
+	}
+
+	_uiFramebuffers.resize(swapchainImages.size());
+
+	for (auto i = 0; i < swapchainImages.size(); i++)
+	{
+		vk::FramebufferCreateInfo imguiFrameBufferInfo{};
+		imguiFrameBufferInfo
+			.setRenderPass(_uiRenderPass)
+			.setAttachments(swapchainImages[i].view)
+			.setWidth(width)
+			.setHeight(height)
+			.setLayers(1);
+
+		_uiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
+	}
 }
 
 Gui::Group Gui::Widget::group(const std::string& label, bool beginExpanded)
@@ -978,10 +1154,17 @@ bool Gui::Widget::dragDropDestination(const std::string& label, std::string& pay
 	return _gui ? _gui->_wrapper->addDragDropDest(label, payloadString) : false;
 }
 
-template <typename T, std::enable_if_t<!is_vector<T>::value, bool>>
-bool Gui::Widget::var(const std::string& label, T& var, T minValue, T maxValue, T step, bool sameLine)
+template<typename Vec, typename Type>
+bool Gui::Widget::var(const std::string& label, Vec& var, Type minValue, Type maxValue, Type step, bool sameLine)
 {
-	return _gui ? _gui->_wrapper->addScalarVar(label, var, minValue, maxValue, step, sameLine) : false;
+	if constexpr (is_vector_v<Vec> && is_vector_type<Type, Vec>)
+	{
+		return _gui ? _gui->_wrapper->addVecVar(label, var, minValue, maxValue, step, sameLine) : false;
+	}
+	else
+	{
+		return _gui ? _gui->_wrapper->addScalarVar(label, var, minValue, maxValue, step, sameLine) : false;
+	}
 }
 
 #define ADD_SCALAR_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, TypeName minValue, TypeName maxValue, TypeName step, bool sameLine);
@@ -994,10 +1177,29 @@ ADD_SCALAR_VAR_TYPE(double_t)
 
 #undef ADD_SCALAR_VAR_TYPE
 
-template<typename T, std::enable_if_t<!is_vector<T>::value, bool>>
-bool Gui::Widget::slider(const std::string& label, T& var, T minValue, T maxValue, bool sameLine)
+
+#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, typename TypeName::value_type step, bool sameLine);
+
+ADD_VEC_VAR_TYPE(int2)
+ADD_VEC_VAR_TYPE(float2)
+ADD_VEC_VAR_TYPE(float3)
+ADD_VEC_VAR_TYPE(float4)
+ADD_VEC_VAR_TYPE(uint2)
+ADD_VEC_VAR_TYPE(int2)
+
+#undef ADD_VEC_VAR_TYPE
+
+template<typename Vec, typename Type>
+bool Gui::Widget::slider(const std::string& label, Vec& var, Type minValue, Type maxValue, bool sameLine)
 {
-	return _gui ? _gui->_wrapper->addScalarSlider(label, var, minValue, maxValue, sameLine) : false;
+	if constexpr (is_vector_v<Vec> && is_vector_type<Type, Vec>)
+	{
+		return _gui ? _gui->_wrapper->addVecSlider(label, var, minValue, maxValue, sameLine) : false;
+	}
+	else
+	{
+		return _gui ? _gui->_wrapper->addScalarSlider(label, var, minValue, maxValue, sameLine) : false;
+	}
 }
 
 #define ADD_SCALAR_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(const std::string& label, TypeName& var, TypeName minValue, TypeName maxValue, bool sameLine);
@@ -1010,29 +1212,7 @@ ADD_SCALAR_SLIDER_TYPE(double_t)
 
 #undef ADD_SCALAR_SLIDER_TYPE
 
-template<typename T, std::enable_if_t<is_vector<T>::value, bool>>
-bool Gui::Widget::var(const std::string& label, T& var, typename T::value_type minValue, typename T::value_type maxValue, typename T::value_type step, bool sameLine)
-{
-	return _gui ? _gui->_wrapper->addVecVar(label, var, minValue, maxValue, step, sameLine) : false;
-}
-
-#define ADD_VEC_VAR_TYPE(TypeName) template bool Gui::Widget::var<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, typename TypeName::value_type step, bool sameLine);
-
-ADD_VEC_VAR_TYPE(float2)
-ADD_VEC_VAR_TYPE(float3)
-ADD_VEC_VAR_TYPE(float4)
-ADD_VEC_VAR_TYPE(uint2)
-ADD_VEC_VAR_TYPE(int2)
-
-#undef ADD_VEC_VAR_TYPE
-
-template<typename T, std::enable_if_t<is_vector<T>::value, bool>>
-bool Gui::Widget::slider(const std::string& label, T& var, typename T::value_type minValue, typename T::value_type maxValue, bool sameLine, const char* displayFormat)
-{
-	return _gui ? _gui->_wrapper->addVecSlider(label, var, minValue, maxValue, sameLine, displayFormat) : false;
-}
-
-#define ADD_VEC_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, bool sameLine, const char*);
+#define ADD_VEC_SLIDER_TYPE(TypeName) template bool Gui::Widget::slider<TypeName>(const std::string& label, TypeName& var, typename TypeName::value_type minValue, typename TypeName::value_type maxValue, bool sameLine);
 
 ADD_VEC_SLIDER_TYPE(int2)
 
