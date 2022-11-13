@@ -11,6 +11,8 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <map>
+
 class GuiImpl
 {
 public:
@@ -31,7 +33,7 @@ private:
 
 	std::unordered_map<std::string, ComboData> _dropDownValues;
 
-	std::unordered_map<vk::Image, VkDescriptorSet> _imageDescriptors;
+	std::map<vk::Image, VkDescriptorSet> _imageDescriptors;
 
 	float _scaleFactor = 1.f;
 	uint32_t _groupStackSize{};
@@ -822,32 +824,43 @@ void GuiImpl::addMatrixVar(std::string_view label, glm::mat<C, R, T>& var, float
 
 Gui::~Gui()
 {
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-
-	for (auto& framebuffer : _uiFramebuffers)
+	if (_instance)
 	{
-		state.device.destroyFramebuffer(framebuffer);
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+
+		for (auto& framebuffer : _uiFramebuffers)
+		{
+			state.device.destroyFramebuffer(framebuffer);
+		}
+
+		state.device.destroyDescriptorPool(_uiPool);
+		state.device.destroyRenderPass(_uiRenderPass);
+
+		ImGui::DestroyContext();
+		_instance.reset();
 	}
-
-	state.device.destroyDescriptorPool(_uiPool);
-	state.device.destroyRenderPass(_uiRenderPass);
-
-	ImGui::DestroyContext();
 }
 
-Gui::UniquePtr Gui::create(uint32_t width, uint32_t height, vk::Format format, const std::vector<Image>& swapchainImages, float scaleFactor)
+Gui::SharedPtr Gui::create(float scaleFactor)
 {
-	auto ui = std::unique_ptr<Gui>(new Gui);
-	ui->_wrapper = new GuiImpl;
-	ui->_wrapper->init(ui.get(), scaleFactor);
+	if (_instance)
+	{
+		return _instance;
+	}
+
+	const auto& renderer = Renderer::get();
+
+	_instance = std::unique_ptr<Gui>(new Gui);
+	_instance->_wrapper = new GuiImpl;
+	_instance->_wrapper->init(_instance.get(), scaleFactor);
 
 	auto& app = Application::get();
-	auto& window = app.getWindow();
+	auto& window = app.window();
 
 	vk::AttachmentDescription imguiAttachment{};
 	imguiAttachment
-		.setFormat(format)
+		.setFormat(renderer.getFormat())
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setLoadOp(vk::AttachmentLoadOp::eLoad)
 		.setStoreOp(vk::AttachmentStoreOp::eStore)
@@ -884,21 +897,10 @@ Gui::UniquePtr Gui::create(uint32_t width, uint32_t height, vk::Format format, c
 	_uiRenderPass = state.device.createRenderPass(imguiInfo);
 	ENGINE_ASSERT(_uiRenderPass != vk::RenderPass{}, "Failed to create imgui render pass");
 
+	const auto& swapchainImages = renderer.getSwapchainImages();
+
 	_uiCommandBuffers = CommandBuffer(swapchainImages.size());
 
-	//_imguiFramebuffers.resize(swapchainImages.size());
-	//for (auto i = 0; i < swapchainImages.size(); i++)
-	//{
-	//	vk::FramebufferCreateInfo imguiFrameBufferInfo{};
-	//	imguiFrameBufferInfo
-	//		.setRenderPass(_imguiRenderPass)
-	//		.setAttachments(swapchainImages[i].view)
-	//		.setWidth(width)
-	//		.setHeight(height)
-	//		.setLayers(1);
-
-	//	_imguiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
-	//}
 	const uint32_t descriptorCount = 1000;
 
 #define DESCRIPTOR_POOL(name, type)			\
@@ -969,10 +971,10 @@ Gui::UniquePtr Gui::create(uint32_t width, uint32_t height, vk::Format format, c
 
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-	ui->onWindowResize(width, height, swapchainImages);
+	auto [width, height] = window->getFramebufferSize();
 
-
-	return ui;
+	_instance->onWindowResize(width, height, swapchainImages);
+	return _instance;
 }
 
 float4 Gui::pickUniqueColour(std::string_view key)
@@ -1054,7 +1056,7 @@ void Gui::render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex
 	}
 }
 
-void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& swapchainImages)
+void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& _swapchainImages)
 {
 	auto& io = ImGui::GetIO();
 	io.DisplaySize.x = (float)width;
@@ -1065,14 +1067,14 @@ void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Imag
 		state.device.destroyFramebuffer(framebuffer);
 	}
 
-	_uiFramebuffers.resize(swapchainImages.size());
+	_uiFramebuffers.resize(_swapchainImages.size());
 
-	for (auto i = 0; i < swapchainImages.size(); i++)
+	for (auto i = 0; i < _swapchainImages.size(); i++)
 	{
 		vk::FramebufferCreateInfo imguiFrameBufferInfo{};
 		imguiFrameBufferInfo
 			.setRenderPass(_uiRenderPass)
-			.setAttachments(swapchainImages[i].view)
+			.setAttachments(_swapchainImages[i].view)
 			.setWidth(width)
 			.setHeight(height)
 			.setLayers(1);

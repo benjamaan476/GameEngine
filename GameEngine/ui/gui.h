@@ -19,11 +19,10 @@ concept is_vector_v = is_vector<T, std::void_t<typename T::value_type>>::value;
 template<typename Type, typename V>
 concept is_vector_type = std::is_same<Type, typename V::value_type>::value;
 
-
 class Gui
 {
 public:
-	using UniquePtr = std::unique_ptr<Gui>;
+	using SharedPtr = std::shared_ptr<Gui>;
 
 	struct DropdownValue
 	{
@@ -148,7 +147,17 @@ public:
 		void windowPosition(uint32_t x, uint32_t y);
 		void windowSize(uint32_t x, uint32_t y);
 	};
-	static UniquePtr create(uint32_t width, uint32_t height, vk::Format format, const std::vector<Image>& swapchainImages, float scaleFactor = 1.f);
+	static SharedPtr create(float scaleFactor = 1.f);
+	static SharedPtr get() 
+	{ 
+		if (_instance)
+		{
+			return _instance;
+		}
+		return create();
+	}
+
+	static void release() { _instance.reset(); }
 	~Gui();
 
 	static float4 pickUniqueColour(std::string_view key);
@@ -164,11 +173,12 @@ public:
 	void render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex);
 	const auto& getCommandBuffer(uint32_t currentFrame) const noexcept { return _uiCommandBuffers[currentFrame]; }
 	static void setGlobalScaling(float scale);
-	void onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& swapchainImages);
+	void onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& _swapchainImages);
 
 private:
 	Gui() = default;
 	GuiImpl* _wrapper = nullptr;
+	static inline SharedPtr _instance;
 
 	static inline vk::RenderPass _uiRenderPass{};
 	static inline vk::DescriptorPool _uiPool{};
