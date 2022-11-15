@@ -51,7 +51,7 @@ struct RendererState
 		}
 
 		ENGINE_ASSERT(false, "Failed to find suitable memory type");
-		return -1;
+		return (uint32_t)-1;
 	}
 };
 

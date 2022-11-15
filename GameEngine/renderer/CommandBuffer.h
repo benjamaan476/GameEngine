@@ -31,7 +31,7 @@ private:
 class OneTimeCommandBuffer
 {
 public:
-	OneTimeCommandBuffer(std::function<void(vk::CommandBuffer)> oneTimeCommand)
+	OneTimeCommandBuffer(auto&& oneTimeCommand)
 	{
 		vk::CommandBufferAllocateInfo allocInfo{};
 		allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
@@ -49,7 +49,8 @@ public:
 
 		commandBuffers[0].begin(beginInfo);
 
-		oneTimeCommand(commandBuffers[0]);
+		std::invoke(oneTimeCommand, commandBuffers[0]);
+		//oneTimeCommand(commandBuffers[0]);
 
 		commandBuffers[0].end();
 

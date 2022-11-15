@@ -23,8 +23,8 @@ public:
 	using SharedPtr = std::shared_ptr<Window>;
 	using EventCallback = std::function<void(void)>;
 
-	static SharedPtr create(const WindowProperties& properties);
-	virtual vk::SurfaceKHR createSurface(const vk::Instance& instance, vk::AllocationCallbacks allocator) = 0;
+	static SharedPtr create(const WindowProperties& properties, std::function<void(int, const char**)> dropCallback);
+	virtual vk::SurfaceKHR createSurface(const vk::Instance& instance) = 0;
 	virtual ~Window() = default;
 
 	virtual void OnUpdate() const = 0;

@@ -21,7 +21,19 @@ void Application::run()
 void Application::initWindow(std::string_view name, uint32_t width, uint32_t height)
 {
 	WindowProperties windowProperties{ name.data(), width, height};
-	_window = Window::create(windowProperties);
+
+	auto callback = std::bind(&Application::dragDropCallback, this, std::placeholders::_1, std::placeholders::_2);
+
+	auto cbk = [](int pathCount, const char** paths)
+	{
+		if (pathCount)
+		{
+			std::string str(paths[0]);
+			LOG_TRACE("File Dropped: {0}", str);
+		}
+	};
+
+	_window = Window::create(windowProperties, callback);
 }
 
 void Application::initGui()
@@ -44,7 +56,7 @@ void Application::mainLoop()
 
 			_gui->demo(show_demo_window);
 			
-			auto changed = boardProperties.onRender(_gui.get());
+			boardProperties.onRender(_gui.get());
 
 			Gui::Window wind(_gui.get(), "Hello, World");
 
@@ -66,9 +78,13 @@ void Application::mainLoop()
 			auto count = std::format("counter = {}", counter);
 			wind.text(count, true);
 
+			auto& textureImage = Renderer::getTextureImage();
+			auto& textureSampler = Renderer::getTextureSampler();
 
-			//wind.image("Image", textureImage, textureSampler);
+			std::string payload;
+			wind.dragDropDestination("Image drop", payload);
 
+			wind.image("Image", textureImage, textureSampler);
 
 			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		}
@@ -89,4 +105,13 @@ void Application::cleanup()
 	destroyUi();
 	Renderer::cleanup();
 
+}
+
+void Application::dragDropCallback(int pathCount, const char** paths) const
+{
+	if(pathCount)
+	{
+		std::string str(paths[0]);
+		LOG_TRACE("File Dropped: {0}", str);
+	}
 }

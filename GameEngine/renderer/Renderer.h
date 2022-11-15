@@ -25,6 +25,9 @@ public:
 	static Renderer& get() { return *_instance; }
 	static vk::Format getFormat() { return _swapchainFormat; }
 	static const std::vector<Image>& getSwapchainImages() { return _swapchainImages; }
+	static const inline Image& getTextureImage() { return textureImage; }
+	static const inline vk::Sampler& getTextureSampler() { return textureSampler; }
+
 private:
 
 	static inline Renderer* _instance = nullptr;
@@ -172,11 +175,11 @@ private:
 
 
 private:
-	static inline VkDebugUtilsMessengerEXT debugMessenger;
+	static inline VkDebugUtilsMessengerEXT _debugMessenger;
 	static inline vk::SurfaceKHR surface;
 	static inline vk::Format _swapchainFormat;
 	static inline vk::Extent2D swapchainExtent;
-	static inline vk::SwapchainKHR swapchain;
+	static inline vk::SwapchainKHR _swapchain;
 	static inline std::vector<Image> _swapchainImages;
 	static inline vk::ShaderModule vertShaderModule;
 	static inline vk::ShaderModule fragShaderModule;
@@ -194,7 +197,7 @@ private:
 	static inline Image textureImage;
 	static inline vk::Sampler textureSampler;
 	static inline DepthImage depthImage;
-	static inline CommandBuffer commandBuffers;
+	static inline CommandBuffer _commandBuffers;
 	static inline std::vector<vk::Semaphore> imageAvailableSemaphores;
 	static inline std::vector<vk::Semaphore> renderFinishedSemaphores;
 	static inline std::vector<vk::Fence> inFlightFences;

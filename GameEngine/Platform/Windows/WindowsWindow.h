@@ -12,8 +12,8 @@
 class WindowsWindow : public Window
 {
 public:
-	static Window::SharedPtr create(const WindowProperties& properties);
-	vk::SurfaceKHR createSurface(const vk::Instance& instance, vk::AllocationCallbacks allocator) override;
+	static Window::SharedPtr create(const WindowProperties& properties, std::function<void(int, const char**)>  dropCallback);
+	vk::SurfaceKHR createSurface(const vk::Instance& instance) override;
 	~WindowsWindow() override;
 
 	void OnUpdate() const override;
@@ -33,7 +33,7 @@ public:
 
 	GLFWwindow* getWindow() const override { return window; }
 private:
-	explicit WindowsWindow(const WindowProperties& properties);
+	explicit WindowsWindow(const WindowProperties& properties, std::function<void(int, const char**)>  dropCallback);
 	virtual void Shutdown();
 
 private:
@@ -48,8 +48,6 @@ private:
 		EventCallback callback;
 
 		bool VSync;
-	} data;
-
-	vk::SurfaceKHR surface;
+	} data{};
 };
 

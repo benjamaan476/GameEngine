@@ -20,7 +20,7 @@ public:
 
 private:
 	friend class Gui;
-	void init(Gui* gui, float scaleFactor);
+	void init(float scaleFactor);
 	void compileFonts();
 
 	bool addCheckboxes(std::string_view label, std::span<bool> data, bool sameLine = false);
@@ -62,7 +62,7 @@ private:
 	template<typename T>
 	bool addBoolVecVar(std::string_view label, T& var, bool sameLine = false);
 	
-	bool addDragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString);
+	bool addDragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString, Gui::DragDropFlags flags = Gui::DragDropFlags::Empty);
 	bool addDragDropDest(std::string_view dataLabel, std::string& payloadString);
 
 	void addText(std::string_view text, bool sameLine = false);
@@ -91,7 +91,7 @@ private:
 	void addMatrixVar(std::string_view label, glm::mat<C, R, T>& var, float minValue = std::numeric_limits<float>::lowest(), float maxValue = std::numeric_limits<float>::max(), bool sameLine = false);
 };
 
-void GuiImpl::init(Gui* gui, float scaleFactor)
+void GuiImpl::init(float scaleFactor)
 {
 	_scaleFactor = scaleFactor;
 	ImGui::CreateContext();
@@ -112,9 +112,9 @@ bool GuiImpl::addCheckboxes(std::string_view label, std::span<bool> data, bool s
 	auto modified = false;
 	std::string labelString{ std::string("##") + label.data() + '0'};
 	
-	for (auto i = 0; i < data.size() - 1; i++)
+	for (size_t i = 0; i < data.size() - 1; i++)
 	{
-		labelString[labelString.size() - 1] = '0' + static_cast<int32_t>(i);
+		labelString[labelString.size() - 1] = '0' + static_cast<char>(i);
 		modified |= addCheckbox(labelString, data[i], !i ? sameLine : true);
 	}
 
@@ -379,7 +379,7 @@ bool GuiImpl::addBoolVecVar(std::string_view label, T& var, bool sameLine)
 	return addCheckboxes(label, { glm::value_ptr(var), var.length() }, sameLine);
 }
 
-bool GuiImpl::addDragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString)
+bool GuiImpl::addDragDropSource(std::string_view, std::string_view dataLabel, std::string_view payloadString, Gui::DragDropFlags flags)
 {
 	if (ImGui::IsItemHovered() && (ImGui::IsMouseClicked(0) || ImGui::IsMouseClicked(1)))
 	{
@@ -391,7 +391,13 @@ bool GuiImpl::addDragDropSource(std::string_view label, std::string_view dataLab
 		return false;
 	}
 
-	auto b = ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID);
+	ImGuiDragDropFlags dragDropFlags = ImGuiDragDropFlags_SourceAllowNullID;
+	if (isSet(flags, Gui::DragDropFlags::Extern))
+	{
+		dragDropFlags |= ImGuiDragDropFlags_SourceExtern;
+	}
+
+	auto b = ImGui::BeginDragDropSource(dragDropFlags);
 
 	if (b)
 	{
@@ -452,21 +458,22 @@ bool GuiImpl::addTextbox(std::string_view label, std::string& text, uint32_t lin
 	text.copy(buf, length);
 	buf[length] = '\0';
 
-
+	auto updated = false;
 	if (lineCount > 1)
 	{
-		auto flags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CtrlEnterForNewLine;
-		return ImGui::InputTextMultiline(label.data(), buf, length, { -1.f, ImGui::GetTextLineHeight() * lineCount }, flags);
+		auto textFlags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CtrlEnterForNewLine;
+		updated = ImGui::InputTextMultiline(label.data(), buf, length, { -1.f, ImGui::GetTextLineHeight() * lineCount }, textFlags);
 	}
 	else
 	{
-		return ImGui::InputText(label.data(), buf, length, ImGuiInputTextFlags_EnterReturnsTrue);
+		updated = ImGui::InputText(label.data(), buf, length, ImGuiInputTextFlags_EnterReturnsTrue);
 	}
 
 	if (fitWindow)
 	{
 		ImGui::PopItemWidth();
 	}
+	return updated;
 }
 
 
@@ -547,7 +554,7 @@ void GuiImpl::addImage(std::string_view label, const Image& image, vk::Sampler s
 	ImGui::PopID();
 }
 
-bool GuiImpl::addImageButton(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
+bool GuiImpl::addImageButton(std::string_view, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (sameLine)
 	{
@@ -853,7 +860,7 @@ Gui::SharedPtr Gui::create(float scaleFactor)
 
 	_instance = std::unique_ptr<Gui>(new Gui);
 	_instance->_wrapper = new GuiImpl;
-	_instance->_wrapper->init(_instance.get(), scaleFactor);
+	_instance->_wrapper->init(scaleFactor);
 
 	auto& app = Application::get();
 	auto& window = app.window();
@@ -959,7 +966,9 @@ Gui::SharedPtr Gui::create(float scaleFactor)
 	};
 
 
-	auto sucess = ImGui_ImplVulkan_Init(&initInfo, _uiRenderPass);
+	auto success = ImGui_ImplVulkan_Init(&initInfo, _uiRenderPass);
+
+	ENGINE_ASSERT(success, "Failed to initialise vulkan for imgui");
 
 	state.device.resetCommandPool(state.commandPool);
 
@@ -1161,6 +1170,11 @@ bool Gui::Widget::checkbox(std::string_view label, T& var, bool sameLine)
 bool Gui::Widget::dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString)
 {
 	return _gui ? _gui->_wrapper->addDragDropSource(label, dataLabel, payloadString) : false;
+}
+
+bool Gui::Widget::dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString, DragDropFlags flags)
+{
+	return _gui ? _gui->_wrapper->addDragDropSource(label, dataLabel, payloadString, flags) : false;
 }
 
 bool Gui::Widget::dragDropDestination(std::string_view label, std::string& payloadString)

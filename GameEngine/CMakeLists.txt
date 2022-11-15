@@ -5,7 +5,8 @@ cmake_minimum_required (VERSION 3.8)
 
 find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
-find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED COMPONENTS glslc)
+find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 find_package(spdlog REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 
@@ -14,19 +15,18 @@ include_directories(${GLFW_INCLUDE_DIRS})
 include_directories(${Vulkan_INCLUDE_DIRS})
 include_directories(${Imgui_INCLUDE_DIRS})
 
-file(GLOB_RECURSE HEADER_FILES ${PROJECT_SOURCE_DIR}/*.h)
-file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/*.cpp)
-
 add_compile_definitions(_PROJECT_DIR_="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add source to this project's executable.
-add_executable (GameEngine "main.cpp" "Application.cpp" "Application.h" "Log/Log.h" "Log/Log.cpp" "Platform/Window.h" "Platform/Window.cpp" "Platform/Windows/WindowsWindow.h" "Platform/Windows/WindowsWindow.cpp" "EngineCore.h" "renderer/Image.h" "renderer/Image.cpp" "renderer/RendererState.h" "renderer/Buffer.h" "renderer/buffer.cpp" "renderer/CommandBuffer.h" "renderer/CommandBuffer.cpp" "ui/gui.h" "ui/gui.cpp" "renderer/Vertex.h" "renderer/Renderer.h" "renderer/Renderer.cpp" "BoardProperties.h")
+add_executable (GameEngine "main.cpp" "Application.cpp" "Log/Log.cpp" "Platform/Window.cpp" "Platform/Windows/WindowsWindow.cpp" "renderer/Image.cpp" "renderer/buffer.cpp" "renderer/CommandBuffer.cpp" "ui/gui.cpp" "renderer/Renderer.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET GameEngine PROPERTY CXX_STANDARD 20)
 endif()
 
+target_compile_options(GameEngine PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W3 /WX>
+  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
+)
+
 target_link_libraries(GameEngine PRIVATE glm::glm glfw ${Vulkan_LIBRARIES} spdlog::spdlog imgui::imgui)
-
-
-# TODO: Add tests and install targets if needed.

@@ -13,7 +13,7 @@ uint32_t Image::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags prop
 	}
 
 	ENGINE_ASSERT(false, "Failed to find suitable memory type");
-	return -1;
+	return (uint32_t)-1;
 }
 
 void Image::createImage()
@@ -25,10 +25,10 @@ void Image::createImage()
 	imageInfo.extent.setDepth(1);
 	imageInfo.setMipLevels(1);
 	imageInfo.setArrayLayers(1);
-	imageInfo.setFormat(properties.format);
-	imageInfo.setTiling(properties.tiling);
+	imageInfo.setFormat(_properties.format);
+	imageInfo.setTiling(_properties.tiling);
 	imageInfo.setInitialLayout(vk::ImageLayout::eUndefined);
-	imageInfo.setUsage(properties.usage);
+	imageInfo.setUsage(_properties.usage);
 	imageInfo.setSharingMode(vk::SharingMode::eExclusive);
 	imageInfo.setSamples(vk::SampleCountFlagBits::e1);
 
@@ -41,7 +41,7 @@ void Image::createMemory()
 
 	vk::MemoryAllocateInfo allocInfo{};
 	allocInfo.setAllocationSize(memoryRequirements.size);
-	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, properties.memoryProperties));
+	allocInfo.setMemoryTypeIndex(findMemoryType(memoryRequirements.memoryTypeBits, _properties.memoryProperties));
 
 	memory = state.device.allocateMemory(allocInfo);
 	ENGINE_ASSERT(memory != vk::DeviceMemory{}, "Failed to allocate image memory");
@@ -54,8 +54,8 @@ void Image::createImageView()
 	vk::ImageViewCreateInfo viewInfo{};
 	viewInfo.setImage(image);
 	viewInfo.setViewType(vk::ImageViewType::e2D);
-	viewInfo.setFormat(properties.format);
-	viewInfo.subresourceRange.setAspectMask(properties.aspect);
+	viewInfo.setFormat(_properties.format);
+	viewInfo.subresourceRange.setAspectMask(_properties.aspect);
 	viewInfo.subresourceRange.setBaseMipLevel(0);
 	viewInfo.subresourceRange.setLevelCount(1);
 	viewInfo.subresourceRange.setBaseArrayLayer(0);
@@ -84,7 +84,7 @@ void Image::transitionLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayou
 	{
 		barrier.subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eDepth);
 
-		if (hasStencilComponent(properties.format))
+		if (hasStencilComponent(_properties.format))
 		{
 			barrier.subresourceRange.aspectMask |= vk::ImageAspectFlagBits::eStencil;
 		}

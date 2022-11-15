@@ -31,5 +31,11 @@ private:
 	Window::SharedPtr _window;
 	Gui::SharedPtr _gui;
 	BoardProperties boardProperties;
+
+	void dragDropCallback(int pathCount, const char** paths) const;
+
+	//Image textureImage;
+	//vk::Sampler textureSampler;
+
 };
 

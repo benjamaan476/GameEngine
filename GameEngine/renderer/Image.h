@@ -28,13 +28,13 @@ public:
 	Image(vk::Image image, vk::Format format)
 		: image{ image }
 	{
-		properties.format = format;
-		properties.aspect = vk::ImageAspectFlagBits::eColor;
+		_properties.format = format;
+		_properties.aspect = vk::ImageAspectFlagBits::eColor;
 
 		createImageView();
 	}
 	Image(uint32_t width, uint32_t height, ImageProperties properties)
-		: width{width}, height{height}, properties{properties}
+		: width{width}, height{height}, _properties{properties}
 	{
 		createImage();
 		createMemory();
@@ -80,7 +80,7 @@ public:
 	}
 
 protected:
-	ImageProperties properties{};
+	ImageProperties _properties{};
 	void createImage();
 	void createMemory();
 	void createImageView();
@@ -139,7 +139,7 @@ public:
 		state = rendererState;
 		width = w;
 		height = h;
-		properties =
+		_properties =
 		{
 			.format = state.findDepthFormat(),
 			.tiling = vk::ImageTiling::eOptimal,

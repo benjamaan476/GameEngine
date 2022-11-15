@@ -67,6 +67,12 @@ public:
 		Inactive = 0x2,
 	};
 
+	enum class DragDropFlags
+	{
+		Empty = 0x0,
+		Extern = 0x1,
+	};
+
 	class Group;
 
 	class Widget
@@ -85,6 +91,7 @@ public:
 		template<typename T>
 		bool checkbox(std::string_view label, T& var, bool sameLine = false);
 		bool dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payload);
+		bool dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payload, DragDropFlags flags = DragDropFlags::Empty);
 		bool dragDropDestination(std::string_view dataLabel, std::string& payload);
 		void text(std::string_view text, bool sameLine = false);
 		void textWrapped(std::string_view text);
@@ -171,7 +178,7 @@ public:
 	void begin();
 	void demo(bool showDemo);
 	void render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex);
-	const auto& getCommandBuffer(uint32_t currentFrame) const noexcept { return _uiCommandBuffers[currentFrame]; }
+	const auto getCommandBuffer(uint32_t currentFrame) const noexcept { return _uiCommandBuffers[currentFrame]; }
 	static void setGlobalScaling(float scale);
 	void onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& _swapchainImages);
 
@@ -188,3 +195,4 @@ private:
 
 ENUM_CLASS_OPERATORS(Gui::WindowFlags)
 ENUM_CLASS_OPERATORS(Gui::TextFlags)
+ENUM_CLASS_OPERATORS(Gui::DragDropFlags)

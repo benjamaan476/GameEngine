@@ -41,7 +41,7 @@ void Renderer::create()
 	_gui = Gui::get();
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL Renderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData)
+VKAPI_ATTR VkBool32 VKAPI_CALL Renderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void*)
 {
 	switch (messageSeverity)
 	{
@@ -66,7 +66,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Renderer::debugCallback(VkDebugUtilsMessageSeveri
 
 bool Renderer::isDeviceSuitable(const vk::PhysicalDevice& device)
 {
-	auto indices = findQueueFamiles(device);
+	auto queueIndices = findQueueFamiles(device);
 
 	auto properties = device.getProperties();
 	auto features = device.getFeatures();
@@ -74,7 +74,7 @@ bool Renderer::isDeviceSuitable(const vk::PhysicalDevice& device)
 	auto swapChainSupport = querySwapChainSupport(device);
 	auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && indices.isComplete() && swapChainAdequate;
+	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && queueIndices.isComplete() && swapChainAdequate;
 }
 
 bool Renderer::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice)
@@ -155,44 +155,44 @@ vk::Extent2D Renderer::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabi
 
 std::vector<Image> Renderer::getSwapchainImages(vk::SwapchainKHR swapchain)
 {
-	std::vector<Image> _swapchainImages;
+	std::vector<Image> swapchainImages;
 	auto images = state.device.getSwapchainImagesKHR(swapchain);
 
 	for (const auto& image : images)
 	{
-		_swapchainImages.emplace_back(Image{ image, _swapchainFormat });
+		swapchainImages.emplace_back(Image{ image, _swapchainFormat });
 	}
 
-	return _swapchainImages;
+	return swapchainImages;
 }
 
 
 Renderer::QueueFamilyIndices Renderer::findQueueFamiles(const vk::PhysicalDevice& device)
 {
-	QueueFamilyIndices indices;
+	QueueFamilyIndices queueIndices;
 	auto familyProperties = device.getQueueFamilyProperties();
 	int i = 0;
 	for (const auto& queueFamily : familyProperties)
 	{
 		if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
 		{
-			indices.graphicsFamily = i;
+			queueIndices.graphicsFamily = i;
 		}
 		auto presentSupport = device.getSurfaceSupportKHR(i, surface);
 
 		if (presentSupport)
 		{
-			indices.presentFamily = i;
+			queueIndices.presentFamily = i;
 		}
 
-		if (indices.isComplete())
+		if (queueIndices.isComplete())
 		{
 			break;
 		}
 
 		i++;
 	}
-	return indices;
+	return queueIndices;
 }
 
 bool Renderer::hasStencilComponent(vk::Format format)
@@ -223,7 +223,7 @@ void Renderer::setupDebugMessenger()
 	createInfo.pUserData = nullptr;
 	createInfo.pfnUserCallback = debugCallback;
 
-	if (CreateDebugUtilsMessengerEXT(state.instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+	if (CreateDebugUtilsMessengerEXT(state.instance, &createInfo, nullptr, &_debugMessenger) != VK_SUCCESS)
 	{
 		ENGINE_ASSERT(false, "Failed to set up debug messenger");
 	}
@@ -297,7 +297,7 @@ void Renderer::createInstance()
 void Renderer::createSurface()
 {
 	const auto& app = Application::get();
-	surface = app.window()->createSurface(state.instance, nullptr);
+	surface = app.window()->createSurface(state.instance);
 }
 
 void Renderer::pickPhysicalDevice()
@@ -321,10 +321,10 @@ void Renderer::pickPhysicalDevice()
 
 void Renderer::createLogicalDevice()
 {
-	auto indices = findQueueFamiles(state.physicalDevice);
+	auto queueIndices = findQueueFamiles(state.physicalDevice);
 
 	std::vector<vk::DeviceQueueCreateInfo> deviceQueueCreateInfos;
-	std::set<uint32_t> uniqueQueueFamiles = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+	std::set<uint32_t> uniqueQueueFamiles = { queueIndices.graphicsFamily.value(), queueIndices.presentFamily.value() };
 
 	auto queuePriority = 1.f;
 
@@ -362,10 +362,10 @@ void Renderer::createLogicalDevice()
 
 	ENGINE_ASSERT(state.device != vk::Device{}, "Failed to create logical device");
 
-	state.graphicsQueue = state.device.getQueue(indices.graphicsFamily.value(), 0);
-	state.presentQueue = state.device.getQueue(indices.presentFamily.value(), 0);
+	state.graphicsQueue = state.device.getQueue(queueIndices.graphicsFamily.value(), 0);
+	state.presentQueue = state.device.getQueue(queueIndices.presentFamily.value(), 0);
 
-	state.queueFamily = indices.graphicsFamily.value();
+	state.queueFamily = queueIndices.graphicsFamily.value();
 }
 
 bool Renderer::checkValidationLayerSupport()
@@ -414,11 +414,11 @@ void Renderer::createSwapchain()
 	createInfo.setImageArrayLayers(1);
 	createInfo.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment);
 
-	auto indices = findQueueFamiles(state.physicalDevice);
+	auto queueIndices = findQueueFamiles(state.physicalDevice);
 
-	uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+	uint32_t queueFamilyIndices[] = { queueIndices.graphicsFamily.value(), queueIndices.presentFamily.value() };
 
-	if (indices.graphicsFamily != indices.presentFamily)
+	if (queueIndices.graphicsFamily != queueIndices.presentFamily)
 	{
 		createInfo.setImageSharingMode(vk::SharingMode::eConcurrent);
 		createInfo.setQueueFamilyIndexCount(2);
@@ -438,12 +438,12 @@ void Renderer::createSwapchain()
 	createInfo.setClipped(true);
 	//createInfo.setOldSwapchain();
 
-	swapchain = state.device.createSwapchainKHR(createInfo);
+	_swapchain = state.device.createSwapchainKHR(createInfo);
 
-	ENGINE_ASSERT(swapchain != vk::SwapchainKHR{}, "Failed to create swap chain");
+	ENGINE_ASSERT(_swapchain != vk::SwapchainKHR{}, "Failed to create swap chain");
 
 	_swapchainFormat = surfaceFormat.format;
-	_swapchainImages = getSwapchainImages(swapchain);
+	_swapchainImages = getSwapchainImages(_swapchain);
 	ENGINE_ASSERT(!_swapchainImages.empty(), "Failed to retrieve swapchain images");
 	swapchainExtent = extent;
 }
@@ -768,10 +768,10 @@ void Renderer::createDepthResources()
 
 void Renderer::createTextureImage()
 {
-	int width, height, channels;
+	int width{}, height{}, channels{};
 	stbi_uc* pixels = nullptr;
 
-	auto filePath = "texture.jpeg";
+	auto filePath = "chess.png";
 
 	for (const auto& path : gTextureDirectories)
 	{
@@ -1043,7 +1043,7 @@ void Renderer::copyBuffer(const vk::Buffer& srcBuffer, vk::Buffer dstBuffer, vk:
 
 void Renderer::createCommandBuffers()
 {
-	commandBuffers = CommandBuffer(MaxFramesInFlight);
+	_commandBuffers = CommandBuffer(MaxFramesInFlight);
 }
 
 void Renderer::createSyncObjects()
@@ -1098,10 +1098,11 @@ void Renderer::updateUniformBuffer(BoardProperties& boardProperties, uint32_t cu
 
 void Renderer::drawFrame(BoardProperties& boardProperties)
 {
-	state.device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
+	auto result = state.device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
+	ENGINE_ASSERT(result == vk::Result::eSuccess, "Failed to get fence");
 
 	uint32_t imageIndex = 0;
-	auto result = state.device.acquireNextImageKHR(swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], nullptr, &imageIndex);
+	result = state.device.acquireNextImageKHR(_swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], nullptr, &imageIndex);
 
 	if (result == vk::Result::eErrorOutOfDateKHR)
 	{
@@ -1117,10 +1118,10 @@ void Renderer::drawFrame(BoardProperties& boardProperties)
 
 	updateUniformBuffer(boardProperties, currentFrame);
 
-	auto commandBuffer = commandBuffers[currentFrame];
+	auto commandBuffer = _commandBuffers[currentFrame];
 
 
-	commandBuffers.record(currentFrame, imageIndex,
+	_commandBuffers.record(currentFrame, imageIndex,
 		[&](vk::CommandBuffer commandBuffer, uint32_t imageIndex) {
 			vk::RenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.setRenderPass(renderPass);
@@ -1187,7 +1188,7 @@ void Renderer::drawFrame(BoardProperties& boardProperties)
 	presentInfo.setWaitSemaphores(renderFinishedSemaphores[currentFrame]);
 
 	//presentInfo.setSwapchainCount(1);
-	presentInfo.setSwapchains(swapchain);
+	presentInfo.setSwapchains(_swapchain);
 	presentInfo.setImageIndices(imageIndex);
 	//presentInfo.setResults(nullptr);
 
@@ -1243,7 +1244,7 @@ void Renderer::cleanupSwapchain()
 		image.destroyView();
 	}
 
-	state.device.destroySwapchainKHR(swapchain);
+	state.device.destroySwapchainKHR(_swapchain);
 }
 
 void Renderer::cleanup()
@@ -1281,7 +1282,7 @@ void Renderer::cleanup()
 	state.instance.destroySurfaceKHR(surface);
 	if (enableValidationLayers)
 	{
-		DestroyDebugUtilsMessengerEXT(state.instance, debugMessenger, nullptr);
+		DestroyDebugUtilsMessengerEXT(state.instance, _debugMessenger, nullptr);
 	}
 	state.instance.destroy();
 }
