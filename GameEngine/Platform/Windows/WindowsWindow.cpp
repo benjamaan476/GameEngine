@@ -1,5 +1,9 @@
 #include "WindowsWindow.h"
 
+#include "../../EngineCore.h"
+
+static std::function<void(int, const char**)> dragDropCallback;
+
 Window::SharedPtr WindowsWindow::create(const WindowProperties& properties, std::function<void(int, const char**)> dropCallback)
 {
 	return std::shared_ptr<WindowsWindow>(new WindowsWindow(properties, dropCallback));
@@ -70,6 +74,8 @@ void WindowsWindow::waitEvents()
 
 WindowsWindow::WindowsWindow(const WindowProperties& properties, std::function<void(int, const char**)>  dropCallback)
 {
+	dragDropCallback = dropCallback;
+
 	data = WindowData
 	{
 		.title = properties.title,
@@ -88,16 +94,11 @@ WindowsWindow::WindowsWindow(const WindowProperties& properties, std::function<v
 	glfwMakeContextCurrent(window);
 	glfwSetWindowUserPointer(window, &data);
 
-
-	auto lamb = [](auto&& callback, GLFWwindow* window, int path, const char** paths)
-	{
-		std::invoke(callback, path, paths);
-	};
-
-	std::function<void(GLFWwindow*, int, const char**)> func = std::bind(lamb, dropCallback, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	//std::function<void(GLFWwindow*, int, const char**)> f1 = std::bind(&dropCallback, window, std::placeholders::_1, std::placeholders::_2);
-	auto ptr = func.target<GLFWdropfun>();
-	glfwSetDropCallback(window, *ptr);
+	glfwSetDropCallback(window, 
+		[](GLFWwindow* window, int pathCount, const char** paths)
+		{
+			dragDropCallback(pathCount, paths);
+		});
 }
 
 

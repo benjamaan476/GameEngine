@@ -32,10 +32,13 @@ private:
 	Gui::SharedPtr _gui;
 	BoardProperties boardProperties;
 
-	void dragDropCallback(int pathCount, const char** paths) const;
+	void dragDropCallback(int pathCount, const char** paths);
 
 	//Image textureImage;
 	//vk::Sampler textureSampler;
+
+	bool dropped = false;
+	std::string _droppedPayload;
 
 };
 

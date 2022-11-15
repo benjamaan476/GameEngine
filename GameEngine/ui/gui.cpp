@@ -63,7 +63,9 @@ private:
 	bool addBoolVecVar(std::string_view label, T& var, bool sameLine = false);
 	
 	bool addDragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString, Gui::DragDropFlags flags = Gui::DragDropFlags::Empty);
+	void endDragDropSource();
 	bool addDragDropDest(std::string_view dataLabel, std::string& payloadString);
+	void endDragDropDest();
 
 	void addText(std::string_view text, bool sameLine = false);
 	void addTextWrapped(std::string_view text);
@@ -401,10 +403,16 @@ bool GuiImpl::addDragDropSource(std::string_view, std::string_view dataLabel, st
 
 	if (b)
 	{
-		ImGui::SetDragDropPayload(dataLabel.data(), payloadString.data(), payloadString.size() * sizeof(payloadString[0]), ImGuiCond_Once);
+		ImGui::SetDragDropPayload(dataLabel.data(), payloadString.data(), payloadString.size() * sizeof(payloadString[0]), ImGuiCond_Always);
+
 	}
 
 	return b;
+}
+
+void GuiImpl::endDragDropSource()
+{
+	ImGui::EndDragDropSource();
 }
 
 bool GuiImpl::addDragDropDest(std::string_view dataLabel, std::string& payloadString)
@@ -423,10 +431,14 @@ bool GuiImpl::addDragDropDest(std::string_view dataLabel, std::string& payloadSt
 			std::memcpy(&payloadString.front(), dragDropPayload->Data, dragDropPayload->DataSize);
 		}
 
-		ImGui::EndDragDropTarget();
 	}
 
 	return b;
+}
+
+void GuiImpl::endDragDropDest()
+{
+	ImGui::EndDragDropTarget();
 }
 
 void GuiImpl::addText(std::string_view text, bool sameLine)
@@ -829,6 +841,29 @@ void GuiImpl::addMatrixVar(std::string_view label, glm::mat<C, R, T>& var, float
 	return b;
 }
 
+void Gui::release()
+{
+
+	{
+		if (_instance)
+		{
+			ImGui_ImplVulkan_Shutdown();
+			ImGui_ImplGlfw_Shutdown();
+
+			for (auto& framebuffer : _uiFramebuffers)
+			{
+				state.device.destroyFramebuffer(framebuffer);
+			}
+
+			state.device.destroyDescriptorPool(_uiPool);
+			state.device.destroyRenderPass(_uiRenderPass);
+
+			ImGui::DestroyContext();
+			_instance.reset();
+		}
+	}
+}
+
 Gui::~Gui()
 {
 	if (_instance)
@@ -1172,6 +1207,14 @@ bool Gui::Widget::dragDropSource(std::string_view label, std::string_view dataLa
 	return _gui ? _gui->_wrapper->addDragDropSource(label, dataLabel, payloadString) : false;
 }
 
+void Gui::Widget::endDropSource()
+{
+	if (_gui)
+	{
+		_gui->_wrapper->endDragDropSource();
+	}
+}
+
 bool Gui::Widget::dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payloadString, DragDropFlags flags)
 {
 	return _gui ? _gui->_wrapper->addDragDropSource(label, dataLabel, payloadString, flags) : false;
@@ -1180,6 +1223,14 @@ bool Gui::Widget::dragDropSource(std::string_view label, std::string_view dataLa
 bool Gui::Widget::dragDropDestination(std::string_view label, std::string& payloadString)
 {
 	return _gui ? _gui->_wrapper->addDragDropDest(label, payloadString) : false;
+}
+
+void Gui::Widget::endDropDestination()
+{
+	if (_gui)
+	{
+		_gui->_wrapper->endDragDropDest();
+	}
 }
 
 template<typename Vec, typename Type>

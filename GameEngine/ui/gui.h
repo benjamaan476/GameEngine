@@ -90,9 +90,12 @@ public:
 		bool direction(std::string_view label, float3& direction);
 		template<typename T>
 		bool checkbox(std::string_view label, T& var, bool sameLine = false);
+
 		bool dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payload);
 		bool dragDropSource(std::string_view label, std::string_view dataLabel, std::string_view payload, DragDropFlags flags = DragDropFlags::Empty);
+		void endDropSource();
 		bool dragDropDestination(std::string_view dataLabel, std::string& payload);
+		void endDropDestination();
 		void text(std::string_view text, bool sameLine = false);
 		void textWrapped(std::string_view text);
 		bool textbox(std::string_view label, std::string& text, TextFlags flags = TextFlags::Empty);
@@ -164,7 +167,7 @@ public:
 		return create();
 	}
 
-	static void release() { _instance.reset(); }
+	static void release();
 	~Gui();
 
 	static float4 pickUniqueColour(std::string_view key);

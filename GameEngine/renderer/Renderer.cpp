@@ -74,7 +74,7 @@ bool Renderer::isDeviceSuitable(const vk::PhysicalDevice& device)
 	auto swapChainSupport = querySwapChainSupport(device);
 	auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && queueIndices.isComplete() && swapChainAdequate;
+	return properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu && features.geometryShader && queueIndices.isComplete() && swapChainAdequate;
 }
 
 bool Renderer::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice)
@@ -771,7 +771,7 @@ void Renderer::createTextureImage()
 	int width{}, height{}, channels{};
 	stbi_uc* pixels = nullptr;
 
-	auto filePath = "chess.png";
+	auto filePath = "null.jpg";
 
 	for (const auto& path : gTextureDirectories)
 	{
@@ -1206,6 +1206,65 @@ void Renderer::drawFrame(BoardProperties& boardProperties)
 
 	currentFrame = (currentFrame + 1) % MaxFramesInFlight;
 }
+
+void Renderer::createImage(std::string_view imagePath)
+{
+	textureImage.destroy();
+
+	int width{}, height{}, channels{};
+	stbi_uc* pixels = nullptr;
+
+	auto filePath = imagePath;
+
+	//for (const auto& path : gTextureDirectories)
+	//{
+	//	auto pathToImage = path / filePath;
+	//	if (std::filesystem::exists(pathToImage))
+	//	{
+			pixels = stbi_load(filePath.data(), &width, &height, &channels, STBI_rgb_alpha);
+	//		break;
+	//	}
+	//}
+
+	ENGINE_ASSERT(pixels, "Failed to load image");
+
+	vk::DeviceSize imageSize = width * height * 4;
+
+	BufferProperties properties =
+	{
+		.size = imageSize,
+		.usage = vk::BufferUsageFlagBits::eTransferSrc,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible,
+	};
+
+	auto stagingBuffer = Buffer(state, properties);
+	auto data = state.device.mapMemory(stagingBuffer.memory, 0, imageSize);
+	std::memcpy(data, pixels, imageSize);
+	state.device.unmapMemory(stagingBuffer.memory);
+
+	stbi_image_free(pixels);
+
+	ImageProperties imageProperties
+	{
+		.format = vk::Format::eB8G8R8A8Srgb,
+		.tiling = vk::ImageTiling::eOptimal,
+		.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+		.aspect = vk::ImageAspectFlagBits::eColor
+	};
+
+	textureImage = Image(width, height, imageProperties);
+	textureImage.transitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	textureImage.copyFromBuffer(stagingBuffer.buffer);
+	textureImage.transitionLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+	state.device.destroyBuffer(stagingBuffer.buffer);
+	state.device.freeMemory(stagingBuffer.memory);
+
+	//state.device.destroySampler(textureSampler);
+	//createTextureSampler();
+}
+
 
 
 void Renderer::recreateSwapChain()

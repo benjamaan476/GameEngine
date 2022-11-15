@@ -81,10 +81,29 @@ void Application::mainLoop()
 			auto& textureImage = Renderer::getTextureImage();
 			auto& textureSampler = Renderer::getTextureSampler();
 
-			std::string payload;
-			wind.dragDropDestination("Image drop", payload);
+			if (dropped)
+			{
+				dropped = false;
+				if (wind.dragDropSource("dasf", "Image drop", _droppedPayload.c_str(), Gui::DragDropFlags::Extern))
+				{
+					wind.endDropSource();
 
+				}
+			}
 			wind.image("Image", textureImage, textureSampler);
+
+			std::string payload;
+			auto dest = wind.dragDropDestination("Image drop", payload);
+
+
+			if (dest)
+			{
+				Renderer::createImage(payload);
+				wind.endDropDestination();
+			}
+
+
+
 
 			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		}
@@ -107,10 +126,13 @@ void Application::cleanup()
 
 }
 
-void Application::dragDropCallback(int pathCount, const char** paths) const
+void Application::dragDropCallback(int pathCount, const char** paths)
 {
 	if(pathCount)
 	{
+		dropped = true;
+		_droppedPayload = std::string{ paths[0] };
+
 		std::string str(paths[0]);
 		LOG_TRACE("File Dropped: {0}", str);
 	}

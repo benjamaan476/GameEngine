@@ -28,6 +28,8 @@ public:
 	static const inline Image& getTextureImage() { return textureImage; }
 	static const inline vk::Sampler& getTextureSampler() { return textureSampler; }
 
+	static void createImage(std::string_view imagePath);
+
 private:
 
 	static inline Renderer* _instance = nullptr;
