@@ -76,8 +76,8 @@ private:
 	bool addRgbColor(std::string_view label, float3& var, bool sameLine = false);
 	bool addRgbaColor(std::string_view label, float4& var, bool sameLine = false);
 
-	void addImage(std::string_view label, const Image& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
-	bool addImageButton(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
+	void addImage(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
+	bool addImageButton(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
 
 	template<typename T>
 	bool addScalarVar(std::string_view label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), T step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
@@ -539,7 +539,7 @@ bool GuiImpl::addRgbaColor(std::string_view label, float4& var, bool sameLine)
 	return ImGui::ColorEdit4(label.data(), glm::value_ptr(var));
 }
 
-void GuiImpl::addImage(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
+void GuiImpl::addImage(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (size == float2(0))
 	{
@@ -558,7 +558,7 @@ void GuiImpl::addImage(std::string_view label, const Image& image, vk::Sampler s
 		_imageDescriptors.insert({ image.image, ImGui_ImplVulkan_AddTexture(sampler, image.view, static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal)) });
 	}
 
-	auto aspectRatio = maintainRatio ? (float)image.height / (float)image.width : 1.f;
+	auto aspectRatio = maintainRatio ? (float)image.getHeight() / (float)image.getWidth() : 1.f;
 
 
 	ImGui::Image(_imageDescriptors[image.image], {size.x, maintainRatio ? size.x * aspectRatio : size.y});
@@ -566,7 +566,7 @@ void GuiImpl::addImage(std::string_view label, const Image& image, vk::Sampler s
 	ImGui::PopID();
 }
 
-bool GuiImpl::addImageButton(std::string_view, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
+bool GuiImpl::addImageButton(std::string_view, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (sameLine)
 	{
@@ -579,7 +579,7 @@ bool GuiImpl::addImageButton(std::string_view, const Image& image, vk::Sampler s
 		_imageDescriptors.insert({ image.image,ImGui_ImplVulkan_AddTexture(sampler, image.view, static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal)) });
 	}
 
-	auto aspectRatio = maintainRatio ? (float)image.height / (float)image.width : 1.f;
+	auto aspectRatio = maintainRatio ? (float)image.getHeight() / (float)image.getWidth() : 1.f;
 	return ImGui::ImageButton(_imageDescriptors[image.image], { size.x, maintainRatio ? size.x * aspectRatio : size.y });
 }
 
@@ -1100,7 +1100,7 @@ void Gui::render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex
 	}
 }
 
-void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& _swapchainImages)
+void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Texture2D>& _swapchainImages)
 {
 	auto& io = ImGui::GetIO();
 	io.DisplaySize.x = (float)width;
@@ -1342,7 +1342,7 @@ bool Gui::Widget::rgbaColour(std::string_view label, float4& var, bool sameLine)
 	return _gui ? _gui->_wrapper->addRgbaColor(label, var, sameLine) : false;
 }
 
-void Gui::Widget::image(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
+void Gui::Widget::image(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (_gui)
 	{
@@ -1350,7 +1350,7 @@ void Gui::Widget::image(std::string_view label, const Image& image, vk::Sampler 
 	}
 }
 
-void Gui::Widget::imageButton(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine )
+void Gui::Widget::imageButton(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine )
 {
 	if (_gui)
 	{

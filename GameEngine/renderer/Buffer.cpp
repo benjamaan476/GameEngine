@@ -2,8 +2,7 @@
 
 Buffer::Buffer() {}
 
-Buffer::Buffer(RendererState state, BufferProperties properties)
-	: state{ state }
+Buffer::Buffer(BufferProperties properties)
 {
 	vk::BufferCreateInfo bufferInfo{};
 	bufferInfo.setSize(properties.size);
@@ -24,6 +23,11 @@ Buffer::Buffer(RendererState state, BufferProperties properties)
 	ENGINE_ASSERT(memory != vk::DeviceMemory{}, "Failed to allocate vertex memory");
 
 	state.device.bindBufferMemory(buffer, memory, 0);
+
+	_descriptor
+		.setBuffer(buffer)
+		.setOffset(0)
+		.setRange(0);
 }
 
 void Buffer::destroy()

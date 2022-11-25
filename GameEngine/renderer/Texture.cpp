@@ -1,6 +1,13 @@
-#include "Image.h"
+#include "Texture.h"
 
-uint32_t Image::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
+#include "../Application.h"
+
+#include "Buffer.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
+uint32_t Texture2D::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
 {
 	auto memoryProperties = state.physicalDevice.getMemoryProperties();
 
@@ -16,12 +23,12 @@ uint32_t Image::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags prop
 	return (uint32_t)-1;
 }
 
-void Image::createImage()
+void Texture2D::createImage()
 {
 	vk::ImageCreateInfo imageInfo{};
 	imageInfo.setImageType(vk::ImageType::e2D);
-	imageInfo.extent.setWidth(width);
-	imageInfo.extent.setHeight(height);
+	imageInfo.extent.setWidth(_width);
+	imageInfo.extent.setHeight(_height);
 	imageInfo.extent.setDepth(1);
 	imageInfo.setMipLevels(1);
 	imageInfo.setArrayLayers(1);
@@ -35,7 +42,7 @@ void Image::createImage()
 	image = state.device.createImage(imageInfo);
 	ENGINE_ASSERT(image != vk::Image{}, "Failed to create image");
 }
-void Image::createMemory()
+void Texture2D::createMemory()
 {
 	auto memoryRequirements = state.device.getImageMemoryRequirements(image);
 
@@ -49,7 +56,7 @@ void Image::createMemory()
 	state.device.bindImageMemory(image, memory, 0);
 
 }
-void Image::createImageView()
+void Texture2D::createImageView()
 {
 	vk::ImageViewCreateInfo viewInfo{};
 	viewInfo.setImage(image);
@@ -65,7 +72,62 @@ void Image::createImageView()
 	ENGINE_ASSERT(view != vk::ImageView{}, "Failed to create image view");
 }
 
-void Image::transitionLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
+Texture2D Texture2D::createFromFile(std::filesystem::path filepath)
+{
+	int width{}, height{}, channels{};
+	stbi_uc* pixels = nullptr;
+
+	auto searchPaths = Application::getTextureDirectories();
+
+	for (const auto& path : searchPaths)
+	{
+		auto pathToImage = path / filepath;
+		if (std::filesystem::exists(pathToImage))
+		{
+			pixels = stbi_load(pathToImage.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+			break;
+		}
+	}
+
+	ENGINE_ASSERT(pixels, "Failed to load image");
+
+	vk::DeviceSize imageSize = width * height * 4;
+
+	BufferProperties properties =
+	{
+		.size = imageSize,
+		.usage = vk::BufferUsageFlagBits::eTransferSrc,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible,
+	};
+
+	auto stagingBuffer = Buffer(properties);
+	auto data = state.device.mapMemory(stagingBuffer.memory, 0, imageSize);
+	std::memcpy(data, pixels, imageSize);
+	state.device.unmapMemory(stagingBuffer.memory);
+
+	stbi_image_free(pixels);
+
+	TextureProperties imageProperties
+	{
+		.format = vk::Format::eB8G8R8A8Srgb,
+		.tiling = vk::ImageTiling::eOptimal,
+		.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+		.aspect = vk::ImageAspectFlagBits::eColor
+	};
+
+	auto textureImage = Texture2D(width, height, imageProperties, Renderer::getSampler());
+	textureImage.transitionLayout(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	textureImage.copyFromBuffer(stagingBuffer.buffer);
+	textureImage.transitionLayout(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+	state.device.destroyBuffer(stagingBuffer.buffer);
+	state.device.freeMemory(stagingBuffer.memory);
+
+	return textureImage;
+}
+
+void Texture2D::transitionLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
 {
 	auto commandBuffer = beginSingleTimeCommand();
 

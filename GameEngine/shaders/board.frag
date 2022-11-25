@@ -3,7 +3,7 @@
 layout(location = 0) out vec4 outColour;
 layout(location = 1) in vec2 fragTex;
 
-layout(binding = 2) uniform UniformBufferObject
+layout(binding = 0) uniform UniformBufferObject
 {
 	vec4 primaryColour;
 	vec4 secondaryColour;

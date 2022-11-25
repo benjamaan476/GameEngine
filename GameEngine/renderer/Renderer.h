@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RendererState.h"
-#include "Image.h"
+#include "Texture.h"
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "Vertex.h"
@@ -24,11 +24,12 @@ public:
 
 	static Renderer& get() { return *_instance; }
 	static vk::Format getFormat() { return _swapchainFormat; }
-	static const std::vector<Image>& getSwapchainImages() { return _swapchainImages; }
-	static const inline Image& getTextureImage() { return textureImage; }
+	static const std::vector<Texture2D>& getSwapchainImages() { return _swapchainImages; }
 	static const inline vk::Sampler& getTextureSampler() { return textureSampler; }
+	static const inline vk::Sampler getSampler() { return textureSampler; }
+	static void registerImage(const Texture2D& texture);
 
-	static void createImage(std::string_view imagePath);
+	//static void createImage(std::string_view imagePath);
 
 private:
 
@@ -73,7 +74,7 @@ private:
 	static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator);
 
 	static QueueFamilyIndices findQueueFamiles(const vk::PhysicalDevice& device);
-	static std::vector<Image> getSwapchainImages(vk::SwapchainKHR swapchain);
+	static std::vector<Texture2D> getSwapchainImages(vk::SwapchainKHR swapchain);
 
 	static bool hasStencilComponent(vk::Format format);
 
@@ -88,13 +89,14 @@ private:
 	static void createFramebuffers();
 	static void createCommandPool();
 	static void createDepthResources();
-	static void createTextureImage();
 	static void createTextureSampler();
 	static void createVertexBuffer();
+	static void createSpriteVertexBuffer();
 	static void createIndexBuffer();
 	static void createUniformBuffers();
 	static void createDescriptorPool();
 	static void createDescriptorSets();
+	static void updateDescriptorSets();
 	static void createCommandBuffers();
 	static void createSyncObjects();
 	static void updateUniformBuffer(BoardProperties& boardProperties, uint32_t currentImage);
@@ -111,69 +113,6 @@ private:
 
 	static std::vector<char> readShader(const std::filesystem::path& file);
 
-	const static inline std::filesystem::path& getExecutableDirectory()
-	{
-		static std::filesystem::path directory;
-		if (directory.empty())
-		{
-			directory = std::filesystem::current_path();
-		}
-
-		return directory;
-	}
-
-	static inline std::vector<std::filesystem::path> getInitialShaderDirectories()
-	{
-		std::filesystem::path projectDir(_PROJECT_DIR_);
-		projectDir = projectDir.make_preferred();
-		std::vector<std::filesystem::path> developmentDirectories =
-		{
-			// First we search in source folders.
-			projectDir,
-			projectDir / "shaders",
-			// Then we search in deployment folder (necessary to pickup NVAPI and other third-party shaders).
-			getExecutableDirectory() / "shaders",
-		};
-
-		std::vector<std::filesystem::path> deploymentDirectories =
-		{
-			getExecutableDirectory() / "shaders",
-		};
-
-#ifdef NDEBUG
-		return deploymentDirectories;
-#else
-		return developmentDirectories;
-#endif
-	}
-
-	static inline std::vector<std::filesystem::path> getInitialTextureDirectories()
-	{
-		std::filesystem::path projectDir(_PROJECT_DIR_);
-		projectDir = projectDir.make_preferred();
-		std::vector<std::filesystem::path> developmentDirectories =
-		{
-			// First we search in source folders.
-			projectDir,
-			projectDir / "textures",
-			// Then we search in deployment folder (necessary to pickup NVAPI and other third-party shaders).
-			getExecutableDirectory() / "textures",
-		};
-
-		std::vector<std::filesystem::path> deploymentDirectories =
-		{
-			getExecutableDirectory() / "textures",
-		};
-
-#ifdef NDEBUG
-		return deploymentDirectories;
-#else
-		return developmentDirectories;
-#endif
-	}
-
-	const static inline std::vector<std::filesystem::path> gShaderDirectories = getInitialShaderDirectories();
-	const static inline std::vector<std::filesystem::path> gTextureDirectories = getInitialTextureDirectories();
 
 
 private:
@@ -182,21 +121,20 @@ private:
 	static inline vk::Format _swapchainFormat;
 	static inline vk::Extent2D swapchainExtent;
 	static inline vk::SwapchainKHR _swapchain;
-	static inline std::vector<Image> _swapchainImages;
+	static inline std::vector<Texture2D> _swapchainImages;
 	static inline vk::ShaderModule vertShaderModule;
 	static inline vk::ShaderModule fragShaderModule;
 	static inline vk::RenderPass renderPass;
 	static inline vk::DescriptorSetLayout descriptorSetLayout;
 	static inline vk::DescriptorPool descriptorPool;
-	static inline std::vector<vk::DescriptorSet> descriptorSets;
 	static inline vk::PipelineLayout pipelineLayout;
-	static inline vk::Pipeline graphicsPipeline;
 	static inline std::vector<vk::Framebuffer> swapChainFramebuffers;
 	static inline Buffer vertexBuffer;
+	static inline Buffer spriteVertexBuffer;
 	static inline Buffer indexBuffer;
-	static inline std::vector<Buffer> uboBuffers;
-	static inline std::vector<Buffer> fragmentUboBuffers;
-	static inline Image textureImage;
+	static inline Buffer spriteIndexBuffer;
+	//static inline std::vector<Buffer> uboBuffers;
+	static inline std::vector<Buffer> boardPropertiesBuffer;
 	static inline vk::Sampler textureSampler;
 	static inline DepthImage depthImage;
 	static inline CommandBuffer _commandBuffers;
@@ -204,31 +142,54 @@ private:
 	static inline std::vector<vk::Semaphore> renderFinishedSemaphores;
 	static inline std::vector<vk::Fence> inFlightFences;
 
+	static inline std::vector<Texture2D> _images;
+
+	static inline struct
+	{
+		vk::Pipeline board;
+		vk::Pipeline pieces;
+	} pipelines;
+
+	static inline struct
+	{
+		std::vector<vk::DescriptorSet> board;
+		std::vector<vk::DescriptorSet> pieces;
+	} descriptorSets;
+
 	static const inline std::vector<Vertex> vertices
 	{
+		{{-0.5f, -0.5f, 0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
+		{ {0.5f, -0.5f, 0.5f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
+		{{0.5f, 0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
+		{{-0.5f, 0.5f, 0.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
+
 		{{-0.5f, -0.5f, 0.f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
 		{ {0.5f, -0.5f, 0.f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
 		{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-		{{-0.5f, 0.5f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
-
-		{{-0.5f, -0.5f, -.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
-		{ {0.5f, -0.5f, -.5f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
-		{{0.5f, 0.5f, -.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-		{{-0.5f, 0.5f, -.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}}
+		{{-0.5f, 0.5f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f}}
 	};
 
 	static const inline std::vector<uint32_t> indices =
 	{
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4
+		0, 1, 2, 2, 3, 0
 	};
 
-	struct UniformBufferObject
+	static const inline std::vector<Vertex> spriteVertices
 	{
-		glm::mat4 model;
-		glm::mat4 view;
-		glm::mat4 proj;
+		{{-0.25f, 0.25f, 0.1f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
+		{{0.25f, 0.25f, 0.1f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
+		{ {0.25f, -0.25f, 0.1f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
+		{{-0.25f, -0.25f, 0.1f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
+
 	};
+	static const inline std::vector<uint32_t> sprinteIndices{};
+
+	//struct UniformBufferObject
+	//{
+	//	glm::mat4 model;
+	//	glm::mat4 view;
+	//	glm::mat4 proj;
+	//};
 
 	static const inline std::vector<const char*> validationLayers
 	{

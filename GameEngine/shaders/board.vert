@@ -6,20 +6,13 @@ layout(location = 2) in vec2 inTex;
 
 layout(location = 1) out vec2 fragTex;
 
-layout(binding = 0) uniform UniformBufferObject
-{
-	mat4 model;
-	mat4 view;
-	mat4 proj;
-} ubo;
-
 void main()
 {
 	//uint vertexIndex = gl_VertexIndex % 6;
 
 	//uint cornerIndex = vertexIndex > 2 ? (vertexIndex - 1) % 4 : vertexIndex;
 
-	vec3 corners[4] = vec3[4](vec3(-1.0, 1.0, 0.0), vec3(1.0, 1.0, 0.0), vec3(1.0, -1.0, 0.0), vec3(-1.0, -1.0, 0.0));
+	vec3 corners[4] = vec3[4](vec3(-1.0, 1.0, 1.0), vec3(1.0, 1.0, 1.0), vec3(1.0, -1.0, 1.0), vec3(-1.0, -1.0, 1.0));
 	vec2 uv[4] = vec2[4](vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0));
 	vec3 pos = corners[gl_VertexIndex];
 	pos *= 0.5;

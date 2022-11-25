@@ -18,7 +18,7 @@ include_directories(${Imgui_INCLUDE_DIRS})
 add_compile_definitions(_PROJECT_DIR_="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add source to this project's executable.
-add_executable (GameEngine "main.cpp" "Application.cpp" "Log/Log.cpp" "Platform/Window.cpp" "Platform/Windows/WindowsWindow.cpp" "renderer/Image.cpp" "renderer/buffer.cpp" "renderer/CommandBuffer.cpp" "ui/gui.cpp" "renderer/Renderer.cpp")
+add_executable (GameEngine "main.cpp" "Application.cpp" "Log/Log.cpp" "Platform/Window.cpp" "Platform/Windows/WindowsWindow.cpp" "renderer/Texture.cpp" "renderer/buffer.cpp" "renderer/CommandBuffer.cpp" "ui/gui.cpp" "renderer/Renderer.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET GameEngine PROPERTY CXX_STANDARD 20)

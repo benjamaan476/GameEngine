@@ -16,13 +16,12 @@ class Buffer
 {
 public:
 	Buffer();
-	Buffer(RendererState state, BufferProperties properties);
+	Buffer(BufferProperties properties);
 
 	void destroy();
 
 	vk::DeviceMemory memory{};
 	vk::Buffer buffer{};
 
-private:
-	RendererState state;
+	vk::DescriptorBufferInfo _descriptor{};
 };

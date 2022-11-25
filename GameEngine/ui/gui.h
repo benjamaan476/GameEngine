@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../EngineCore.h"
-#include "../renderer/Image.h"
+#include "../renderer/Texture.h"
 #include "../renderer/CommandBuffer.h"
 
 class GuiImpl;
@@ -105,8 +105,8 @@ public:
 		bool rgbColour(std::string_view label, float3& var, bool sameLine = false);
 		bool rgbaColour(std::string_view label, float4& var, bool sameLine = false);
 
-		void image(std::string_view label, const Image& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
-		void imageButton(std::string_view label, const Image& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
+		void image(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
+		void imageButton(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
 
 
 		template<typename Vec, typename Type>
@@ -183,7 +183,7 @@ public:
 	void render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex);
 	const auto getCommandBuffer(uint32_t currentFrame) const noexcept { return _uiCommandBuffers[currentFrame]; }
 	static void setGlobalScaling(float scale);
-	void onWindowResize(uint32_t width, uint32_t height, const std::vector<Image>& _swapchainImages);
+	void onWindowResize(uint32_t width, uint32_t height, const std::vector<Texture2D>& _swapchainImages);
 
 private:
 	Gui() = default;

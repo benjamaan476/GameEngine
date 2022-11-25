@@ -9,6 +9,10 @@ Application::Application(std::string_view name, uint32_t width, uint32_t height)
 	initWindow(name, width, height);
 
 	Renderer::create();
+	image = Texture2D::createFromFile("chess.png");
+
+	Renderer::registerImage(image);
+
 	initGui();
 }
 
@@ -78,7 +82,6 @@ void Application::mainLoop()
 			auto count = std::format("counter = {}", counter);
 			wind.text(count, true);
 
-			auto& textureImage = Renderer::getTextureImage();
 			auto& textureSampler = Renderer::getTextureSampler();
 
 			if (dropped)
@@ -90,7 +93,7 @@ void Application::mainLoop()
 
 				}
 			}
-			wind.image("Image", textureImage, textureSampler);
+			wind.image("Image", image, textureSampler);
 
 			std::string payload;
 			auto dest = wind.dragDropDestination("Image drop", payload);
@@ -98,7 +101,8 @@ void Application::mainLoop()
 
 			if (dest)
 			{
-				Renderer::createImage(payload);
+				//Renderer::createImage(payload);
+				image = Texture2D::createFromFile(payload);
 				wind.endDropDestination();
 			}
 
