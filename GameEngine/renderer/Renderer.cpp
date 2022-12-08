@@ -526,7 +526,14 @@ void Renderer::createDescriptorSetLayout()
 		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
 		.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
-	auto bindings = { /*uboLayoutBinding,*/ samplerLayoutBinding, fragUboBinding };
+	vk::DescriptorSetLayoutBinding cameraUboBinding{};
+	cameraUboBinding
+		.setBinding(2)
+		.setDescriptorCount(1)
+		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+		.setStageFlags(vk::ShaderStageFlagBits::eVertex);
+
+	auto bindings = { /*uboLayoutBinding,*/ samplerLayoutBinding, fragUboBinding, cameraUboBinding };
 	vk::DescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.setBindings(bindings);
 
@@ -625,8 +632,8 @@ void Renderer::createGraphicsPipeline()
 	colourBlenderAttachment
 		.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
 		.setBlendEnable(false)
-		.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
-		.setDstColorBlendFactor(vk::BlendFactor::eSrc1Alpha)
+		.setSrcColorBlendFactor(vk::BlendFactor::eOne)
+		.setDstColorBlendFactor(vk::BlendFactor::eOne)
 		.setColorBlendOp(vk::BlendOp::eAdd)
 		.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
 		.setDstAlphaBlendFactor(vk::BlendFactor::eZero)
@@ -695,6 +702,25 @@ void Renderer::createGraphicsPipeline()
 
 	auto spriteShaderStages = { spriteVertShaderStageInfo, spriteFragShaderStageInfo };
 
+	vk::PipelineColorBlendAttachmentState colourBlenderAttachment2{};
+	colourBlenderAttachment2
+		.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
+		.setBlendEnable(true)
+		.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
+		.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+		.setColorBlendOp(vk::BlendOp::eAdd)
+		.setSrcAlphaBlendFactor(vk::BlendFactor::eSrcAlpha)
+		.setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+		.setAlphaBlendOp(vk::BlendOp::eAdd);
+
+
+	vk::PipelineColorBlendStateCreateInfo colourBlending2{};
+	colourBlending2
+		.setLogicOpEnable(false)
+		.setLogicOp(vk::LogicOp::eCopy)
+		.setAttachments(colourBlenderAttachment2)
+		.setBlendConstants({ 1.f, 1.f, 1.f, 1.f });
+
 	vk::GraphicsPipelineCreateInfo spritePipelineInfo{};
 	spritePipelineInfo
 		.setStages(spriteShaderStages)
@@ -703,7 +729,7 @@ void Renderer::createGraphicsPipeline()
 		.setPInputAssemblyState(&inputAssembly)
 		.setPRasterizationState(&rasterizer)
 		.setPMultisampleState(&multiSample)
-		.setPColorBlendState(&colourBlending)
+		.setPColorBlendState(&colourBlending2)
 		.setPDynamicState(&dynamicStateCreateInfo)
 		.setPDepthStencilState(&depthStencilInfo)
 		.setLayout(pipelineLayout)
@@ -832,7 +858,7 @@ void Renderer::createTextureSampler()
 {
 	vk::SamplerCreateInfo samplerInfo{};
 	samplerInfo
-		.setMagFilter(vk::Filter::eLinear)
+		.setMagFilter(vk::Filter::eNearest)
 		.setMinFilter(vk::Filter::eLinear)
 		.setAddressModeU(vk::SamplerAddressMode::eRepeat)
 		.setAddressModeV(vk::SamplerAddressMode::eRepeat)
@@ -959,6 +985,7 @@ void Renderer::createUniformBuffers()
 	vk::DeviceSize bufferSize = sizeof(BoardProperties);
 
 	//uboBuffers.resize(MaxFramesInFlight);
+	cameraBuffer.resize(MaxFramesInFlight);
 	boardPropertiesBuffer.resize(MaxFramesInFlight);
 	BufferProperties properties =
 	{
@@ -967,9 +994,17 @@ void Renderer::createUniformBuffers()
 		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
 	};
 
+	BufferProperties cameraProperties =
+	{
+		.size = sizeof(glm::mat4),
+		.usage = vk::BufferUsageFlagBits::eUniformBuffer,
+		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+	};
+
 	for (auto i = 0; i < MaxFramesInFlight; i++)
 	{
 		//uboBuffers[i] = Buffer(state, properties);
+		cameraBuffer[i] = Buffer(cameraProperties);
 		boardPropertiesBuffer[i] = Buffer(properties);
 	}
 }
@@ -1048,8 +1083,8 @@ void Renderer::createDescriptorSets()
 
 void Renderer::updateDescriptorSets()
 {
-	for (auto i = 0; i < MaxFramesInFlight; i++)
-	{
+	//for (auto i = 0; i < MaxFramesInFlight; i++)
+	//{
 		//vk::DescriptorBufferInfo bufferInfo{};
 		//bufferInfo
 		//	.setBuffer(uboBuffers[i].buffer)
@@ -1111,11 +1146,27 @@ void Renderer::updateDescriptorSets()
 				.setImageInfo(_images[0]._imageInfo);
 
 			writeDescriptorSets.push_back(piecesDescriptorSet);
+
+			vk::DescriptorBufferInfo bufferInfo{};
+			bufferInfo
+				.setBuffer(cameraBuffer[i].buffer)
+				.setOffset(0)
+				.setRange(sizeof(glm::mat4));
+
+			vk::WriteDescriptorSet descriptorWrite{};
+			descriptorWrite
+				.setDstSet(descriptorSets.pieces[i])
+				.setDstBinding(2)
+				.setDstArrayElement(0)
+				.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+				.setBufferInfo(bufferInfo);
+
+			writeDescriptorSets.push_back(descriptorWrite);
 		}
 
 		state.device.updateDescriptorSets(writeDescriptorSets, nullptr);
 
-	}
+	//}
 
 }
 
@@ -1182,6 +1233,12 @@ void Renderer::updateUniformBuffer(BoardProperties& boardProperties, uint32_t cu
 	//std::memcpy(data, &ubo, sizeof(ubo));
 
 	//state.device.unmapMemory(uboBuffers[currentImage].memory);
+
+	auto ortho = glm::ortho(0.f, 800.f, 600.f, 0.f, -1.f, 1.f);
+
+	auto data = state.device.mapMemory(cameraBuffer[currentImage].memory, 0, sizeof(glm::mat4));
+	std::memcpy(data, &ortho, sizeof(glm::mat4));
+	state.device.unmapMemory(cameraBuffer[currentImage].memory);
 
 	auto fragData = state.device.mapMemory(boardPropertiesBuffer[currentImage].memory, 0, sizeof(BoardProperties));
 
@@ -1373,6 +1430,7 @@ void Renderer::cleanup()
 	for (int i = 0; i < MaxFramesInFlight; i++)
 	{
 		//uboBuffers[i].destroy();
+		cameraBuffer[i].destroy();
 		boardPropertiesBuffer[i].destroy();
 	}
 

@@ -133,6 +133,7 @@ private:
 	static inline Buffer spriteVertexBuffer;
 	static inline Buffer indexBuffer;
 	static inline Buffer spriteIndexBuffer;
+	static inline std::vector<Buffer> cameraBuffer;
 	//static inline std::vector<Buffer> uboBuffers;
 	static inline std::vector<Buffer> boardPropertiesBuffer;
 	static inline vk::Sampler textureSampler;
@@ -162,11 +163,6 @@ private:
 		{ {0.5f, -0.5f, 0.5f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
 		{{0.5f, 0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
 		{{-0.5f, 0.5f, 0.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
-
-		{{-0.5f, -0.5f, 0.f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
-		{ {0.5f, -0.5f, 0.f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
-		{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-		{{-0.5f, 0.5f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f}}
 	};
 
 	static const inline std::vector<uint32_t> indices =
@@ -176,11 +172,10 @@ private:
 
 	static const inline std::vector<Vertex> spriteVertices
 	{
-		{{-0.25f, 0.25f, 0.1f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
-		{{0.25f, 0.25f, 0.1f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-		{ {0.25f, -0.25f, 0.1f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
-		{{-0.25f, -0.25f, 0.1f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
-
+		{{200.f, 400.f, 0.0f}, {1.f, 1.f, 1.f}, {0.f, 0.f}},
+		{{200.f, 200.f, 0.0f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
+		{{400.f, 200.f, 0.0f}, { 0.f, 1.f, 0.f }, {1.f, 1.f}},
+		{{400.f, 400.f, 0.0f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
 	};
 	static const inline std::vector<uint32_t> sprinteIndices{};
 
