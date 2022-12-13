@@ -72,7 +72,7 @@ bool Renderer::isDeviceSuitable(const vk::PhysicalDevice& device)
 	auto swapChainSupport = querySwapChainSupport(device);
 	auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-	return properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu && features.geometryShader && queueIndices.isComplete() && swapChainAdequate;
+	return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && queueIndices.isComplete() && swapChainAdequate;
 }
 
 bool Renderer::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice)
