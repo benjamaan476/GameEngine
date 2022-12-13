@@ -166,13 +166,6 @@ private:
 		0, 1, 2, 2, 3, 0
 	};
 
-	//struct UniformBufferObject
-	//{
-	//	glm::mat4 model;
-	//	glm::mat4 view;
-	//	glm::mat4 proj;
-	//};
-
 	static const inline std::vector<const char*> validationLayers
 	{
 		"VK_LAYER_KHRONOS_validation",
