@@ -18,19 +18,18 @@ void Renderer::initVulkan()
 	createSwapchain();
 	createRenderPass();
 	createDescriptorSetLayout();
-	createGraphicsPipeline();
 	createCommandPool();
-	createDepthResources();
-	createFramebuffers();
-	createVertexBuffer();
-	createSpriteVertexBuffer();
-	createIndexBuffer();
 	createUniformBuffers();
 	createDescriptorPool();
 	createDescriptorSets();
+	createDepthResources();
+	createFramebuffers();
+	createVertexBuffer();
+	createIndexBuffer();
 	//updateDescriptorSets();
 	createCommandBuffers();
 	createSyncObjects();
+	createGraphicsPipeline();
 }
 
 
@@ -563,7 +562,7 @@ void Renderer::createGraphicsPipeline()
 
 	auto shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 
-	std::vector<vk::DynamicState> dynamicStates =
+	auto dynamicStates =
 	{
 		vk::DynamicState::eViewport,
 		vk::DynamicState::eScissor
@@ -672,7 +671,6 @@ void Renderer::createGraphicsPipeline()
 		.setPViewportState(&viewportState)
 		.setPRasterizationState(&rasterizer)
 		.setPMultisampleState(&multiSample)
-		.setPDepthStencilState(nullptr)
 		.setPColorBlendState(&colourBlending)
 		.setPDynamicState(&dynamicStateCreateInfo)
 		.setPDepthStencilState(&depthStencilInfo)
@@ -682,70 +680,18 @@ void Renderer::createGraphicsPipeline()
 	//pipelineInfo.setBasePipelineHandle(VK_NULL_HANDLE);
 		.setBasePipelineIndex(-1);
 
-	auto spriteVertShaderCode = readShader("spriteVert.spv");
-	auto spriteFragShaderCode = readShader("spriteFrag.spv");
-
-	auto spriteVertShaderModule = createShaderModule(spriteVertShaderCode);
-	auto spriteFragShaderModule = createShaderModule(spriteFragShaderCode);
-
-	vk::PipelineShaderStageCreateInfo spriteVertShaderStageInfo{};
-	spriteVertShaderStageInfo
-		.setStage(vk::ShaderStageFlagBits::eVertex)
-		.setModule(spriteVertShaderModule)
-		.setPName("main");
-
-	vk::PipelineShaderStageCreateInfo spriteFragShaderStageInfo{};
-	spriteFragShaderStageInfo
-		.setStage(vk::ShaderStageFlagBits::eFragment)
-		.setModule(spriteFragShaderModule)
-		.setPName("main");
-
-	auto spriteShaderStages = { spriteVertShaderStageInfo, spriteFragShaderStageInfo };
-
-	vk::PipelineColorBlendAttachmentState colourBlenderAttachment2{};
-	colourBlenderAttachment2
-		.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
-		.setBlendEnable(true)
-		.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
-		.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
-		.setColorBlendOp(vk::BlendOp::eAdd)
-		.setSrcAlphaBlendFactor(vk::BlendFactor::eSrcAlpha)
-		.setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
-		.setAlphaBlendOp(vk::BlendOp::eAdd);
 
 
-	vk::PipelineColorBlendStateCreateInfo colourBlending2{};
-	colourBlending2
-		.setLogicOpEnable(false)
-		.setLogicOp(vk::LogicOp::eCopy)
-		.setAttachments(colourBlenderAttachment2)
-		.setBlendConstants({ 1.f, 1.f, 1.f, 1.f });
-
-	vk::GraphicsPipelineCreateInfo spritePipelineInfo{};
-	spritePipelineInfo
-		.setStages(spriteShaderStages)
-		.setPVertexInputState(&vertexInputInfo)
-		.setPViewportState(&viewportState)
-		.setPInputAssemblyState(&inputAssembly)
-		.setPRasterizationState(&rasterizer)
-		.setPMultisampleState(&multiSample)
-		.setPColorBlendState(&colourBlending2)
-		.setPDynamicState(&dynamicStateCreateInfo)
-		.setPDepthStencilState(&depthStencilInfo)
-		.setLayout(pipelineLayout)
-		.setRenderPass(renderPass)
-		.setSubpass(0)
-		.setBasePipelineIndex(-1);
-
-	auto createInfos = { pipelineInfo, spritePipelineInfo };
+	auto createInfos = { pipelineInfo };
 
 	auto pipelin = state.device.createGraphicsPipelines(VK_NULL_HANDLE, createInfos).value;
 
 	pipelines.board = pipelin[0];
-	pipelines.pieces = pipelin[1];
-	//auto success = vkCreateGraphicsPipelines(state.device, VK_NULL_HANDLE, 1, reinterpret_cast<const VkGraphicsPipelineCreateInfo*>(&pipelineInfo), nullptr, reinterpret_cast<VkPipeline*>(&boardPipeline));
 	ENGINE_ASSERT(pipelines.board != vk::Pipeline{}, "Failed to create graphics pipeline");
-	ENGINE_ASSERT(pipelines.pieces != vk::Pipeline{}, "Failed to create graphics pipeline");
+	//ENGINE_ASSERT(pipelines.pieces != vk::Pipeline{}, "Failed to create graphics pipeline");
+
+	SpriteRenderer::create(pipelineInfo, descriptorSets.pieces);
+
 }
 
 vk::ShaderModule Renderer::createShaderModule(const std::vector<char>& code)
@@ -859,7 +805,7 @@ void Renderer::createTextureSampler()
 	vk::SamplerCreateInfo samplerInfo{};
 	samplerInfo
 		.setMagFilter(vk::Filter::eNearest)
-		.setMinFilter(vk::Filter::eLinear)
+		.setMinFilter(vk::Filter::eNearest)
 		.setAddressModeU(vk::SamplerAddressMode::eRepeat)
 		.setAddressModeV(vk::SamplerAddressMode::eRepeat)
 		.setAddressModeW(vk::SamplerAddressMode::eRepeat)
@@ -909,39 +855,6 @@ void Renderer::createVertexBuffer()
 	vertexBuffer = Buffer(vertexBufferProperties);
 
 	copyBuffer(stagingBuffer.buffer, vertexBuffer.buffer, bufferSize);
-
-	state.device.destroyBuffer(stagingBuffer.buffer);
-	state.device.freeMemory(stagingBuffer.memory);
-}
-
-void Renderer::createSpriteVertexBuffer()
-{
-	vk::DeviceSize bufferSize = sizeof(spriteVertices[0]) * spriteVertices.size();
-
-	BufferProperties properties =
-	{
-		.size = bufferSize,
-		.usage = vk::BufferUsageFlagBits::eTransferSrc,
-		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
-	};
-
-	auto stagingBuffer = Buffer(properties);
-	auto data = state.device.mapMemory(stagingBuffer.memory, 0, bufferSize);
-
-	std::memcpy(data, spriteVertices.data(), bufferSize);
-
-	state.device.unmapMemory(stagingBuffer.memory);
-
-	BufferProperties vertexBufferProperties =
-	{
-		.size = bufferSize,
-		.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
-		.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
-	};
-
-	spriteVertexBuffer = Buffer(vertexBufferProperties);
-
-	copyBuffer(stagingBuffer.buffer, spriteVertexBuffer.buffer, bufferSize);
 
 	state.device.destroyBuffer(stagingBuffer.buffer);
 	state.device.freeMemory(stagingBuffer.memory);
@@ -1083,54 +996,6 @@ void Renderer::createDescriptorSets()
 
 void Renderer::updateDescriptorSets()
 {
-	//for (auto i = 0; i < MaxFramesInFlight; i++)
-	//{
-		//vk::DescriptorBufferInfo bufferInfo{};
-		//bufferInfo
-		//	.setBuffer(uboBuffers[i].buffer)
-		//	.setOffset(0)
-		//	.setRange(sizeof(UniformBufferObject));
-
-		//vk::WriteDescriptorSet descriptorWrite{};
-		//descriptorWrite
-		//	.setDstSet(descriptorSets[i])
-		//	.setDstBinding(0)
-		//	.setDstArrayElement(0)
-		//	.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		//	.setBufferInfo(bufferInfo);
-
-		//vk::DescriptorBufferInfo fragmentBufferInfo{};
-		//fragmentBufferInfo
-		//	.setBuffer(boardPropertiesBuffer[i].buffer)
-		//	.setOffset(0)
-		//	.setRange(sizeof(BoardProperties));
-
-		//vk::WriteDescriptorSet fragmentDescriptorWrite{};
-		//fragmentDescriptorWrite
-		//	.setDstSet(descriptorSets[i])
-		//	.setDstBinding(0)
-		//	.setDstArrayElement(0)
-		//	.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		//	.setBufferInfo(fragmentBufferInfo);
-
-		//std::vector descriptorSet = { /*descriptorWrite, */fragmentDescriptorWrite };
-
-		//for (const auto& image : _images)
-		//{
-		//	const auto& imageInfo = image.getDescriptor();
-
-		//	vk::WriteDescriptorSet imageDescriptorWrite{};
-		//	imageDescriptorWrite
-		//		.setDstSet(descriptorSets[i])
-		//		.setDstBinding(1)
-		//		.setDstArrayElement(0)
-		//		.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-		//		.setImageInfo(imageInfo);
-
-		//	descriptorSet.push_back(imageDescriptorWrite);
-		//}
-
-		//state.device.updateDescriptorSets(descriptorSet, nullptr);
 		std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
 
 		writeDescriptorSets.resize(0);
@@ -1165,9 +1030,6 @@ void Renderer::updateDescriptorSets()
 		}
 
 		state.device.updateDescriptorSets(writeDescriptorSets, nullptr);
-
-	//}
-
 }
 
 
@@ -1212,6 +1074,11 @@ void Renderer::createSyncObjects()
 		inFlightFences[i] = state.device.createFence(fenceInfo);
 		ENGINE_ASSERT(inFlightFences[i] != vk::Fence{}, "Failed to create semaphore");
 	}
+}
+
+void Renderer::createSprite()
+{
+	SpriteRenderer::createSprite({ 200, 200 }, _images[0]);
 }
 
 void Renderer::updateUniformBuffer(BoardProperties& boardProperties, uint32_t currentImage)
@@ -1297,6 +1164,7 @@ void Renderer::drawFrame(BoardProperties& boardProperties)
 	commandBuffer.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
 	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets.board[currentFrame], nullptr);
 
+
 	vk::Viewport viewport{};
 	viewport.setX(0.f);
 	viewport.setY(0.f);
@@ -1313,15 +1181,11 @@ void Renderer::drawFrame(BoardProperties& boardProperties)
 
 	commandBuffer.setScissor(0, scissor);
 
-	commandBuffer.drawIndexed(6, 1, 0, 0, 0);
-
-	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets.pieces[currentFrame], nullptr);
-	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines.pieces);
-
-	commandBuffer.bindVertexBuffers(0, spriteVertexBuffer.buffer, offsets);
-	//commandBuffer.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
 
 	commandBuffer.drawIndexed(6, 1, 0, 0, 0);
+
+	SpriteRenderer::renderSprite(commandBuffer, currentFrame);
+
 	commandBuffer.endRenderPass();
 		});
 
@@ -1424,9 +1288,7 @@ void Renderer::cleanup()
 	state.device.destroyCommandPool(state.commandPool);
 
 	vertexBuffer.destroy();
-	spriteVertexBuffer.destroy();
 	indexBuffer.destroy();
-	spriteIndexBuffer.destroy();
 	for (int i = 0; i < MaxFramesInFlight; i++)
 	{
 		//uboBuffers[i].destroy();
@@ -1436,7 +1298,6 @@ void Renderer::cleanup()
 
 	state.device.destroyDescriptorSetLayout(descriptorSetLayout);
 	state.device.destroyPipeline(pipelines.board);
-	state.device.destroyPipeline(pipelines.pieces);
 	state.device.destroyPipelineLayout(pipelineLayout);
 	state.device.destroyRenderPass(renderPass);
 	state.device.destroyShaderModule(fragShaderModule);

@@ -9,12 +9,13 @@ layout(location = 1) out vec2 fragTex;
 
 layout(binding = 2) uniform UniformBufferObject
 {
-	mat4 proj;
+	mat4 model;
+	mat4 projection;
 } camera;
 
 void main()
 {
-	gl_Position = camera.proj * vec4(inPosition, 1.0);
+	gl_Position = camera.projection * camera.model * vec4(inPosition, 1.0);
 	fragColour = inColour;
 	fragTex = inTex;
 }
