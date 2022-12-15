@@ -300,19 +300,17 @@ namespace egkr
 		{
 			auto sprite = egkr::Sprite{ .size = size, .texture = texture };
 
+			BufferProperties uboProperties =
+			{
+				.size = sizeof(egkr::SpriteUbo),
+				.usage = vk::BufferUsageFlagBits::eUniformBuffer,
+				.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+			};
+
 			for (size_t i = 0; i < sprite.uboBuffer.size(); i++)
 			{
-				BufferProperties uboProperties =
-				{
-					.size = sizeof(egkr::SpriteUbo),
-					.usage = vk::BufferUsageFlagBits::eUniformBuffer,
-					.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
-				};
 
-				for (auto i = 0u; i < MaxFramesInFlight; i++)
-				{
-					sprite.uboBuffer[i] = Buffer(uboProperties);
-				}
+				sprite.uboBuffer[i] = Buffer(uboProperties);	
 			}
 
 			vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
