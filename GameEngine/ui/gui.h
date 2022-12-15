@@ -105,8 +105,8 @@ public:
 		bool rgbColour(std::string_view label, float3& var, bool sameLine = false);
 		bool rgbaColour(std::string_view label, float4& var, bool sameLine = false);
 
-		void image(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
-		void imageButton(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
+		void image(std::string_view label, const egkr::Texture2D& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
+		void imageButton(std::string_view label, const egkr::Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
 
 
 		template<typename Vec, typename Type>
@@ -183,7 +183,7 @@ public:
 	void render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex);
 	const auto getCommandBuffer(uint32_t currentFrame) const noexcept { return _uiCommandBuffers[currentFrame]; }
 	static void setGlobalScaling(float scale);
-	void onWindowResize(uint32_t width, uint32_t height, const std::vector<Texture2D>& _swapchainImages);
+	void onWindowResize(uint32_t width, uint32_t height, const std::vector<egkr::Texture2D>& _swapchainImages);
 
 private:
 	Gui() = default;
@@ -193,7 +193,7 @@ private:
 	static inline vk::RenderPass _uiRenderPass{};
 	static inline vk::DescriptorPool _uiPool{};
 	static inline std::vector<vk::Framebuffer> _uiFramebuffers{};
-	static inline CommandBuffer _uiCommandBuffers{};
+	static inline egkr::CommandBuffer _uiCommandBuffers{};
 };
 
 ENUM_CLASS_OPERATORS(Gui::WindowFlags)

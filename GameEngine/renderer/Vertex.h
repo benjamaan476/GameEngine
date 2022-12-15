@@ -1,38 +1,40 @@
 #pragma once
-
-struct Vertex
+namespace egkr
 {
-	glm::vec3 pos;
-	glm::vec3 colour;
-	glm::vec2 tex;
-
-	static vk::VertexInputBindingDescription getBindingDescription()
+	struct Vertex
 	{
-		vk::VertexInputBindingDescription bindingDescription{};
-		bindingDescription.setBinding(0);
-		bindingDescription.setStride(sizeof(Vertex));
-		bindingDescription.setInputRate(vk::VertexInputRate::eVertex);
-		return bindingDescription;
-	}
+		glm::vec3 pos;
+		glm::vec3 colour;
+		glm::vec2 tex;
 
-	static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescription()
-	{
-		std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
+		static vk::VertexInputBindingDescription getBindingDescription()
+		{
+			vk::VertexInputBindingDescription bindingDescription{};
+			bindingDescription.setBinding(0);
+			bindingDescription.setStride(sizeof(Vertex));
+			bindingDescription.setInputRate(vk::VertexInputRate::eVertex);
+			return bindingDescription;
+		}
 
-		attributeDescriptions[0].setBinding(0);
-		attributeDescriptions[0].setLocation(0);
-		attributeDescriptions[0].setFormat(vk::Format::eR32G32B32Sfloat);
-		attributeDescriptions[0].setOffset(offsetof(Vertex, pos));
+		static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescription()
+		{
+			std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
 
-		attributeDescriptions[1].setBinding(0);
-		attributeDescriptions[1].setLocation(1);
-		attributeDescriptions[1].setFormat(vk::Format::eR32G32B32Sfloat);
-		attributeDescriptions[1].setOffset(offsetof(Vertex, colour));
+			attributeDescriptions[0].setBinding(0);
+			attributeDescriptions[0].setLocation(0);
+			attributeDescriptions[0].setFormat(vk::Format::eR32G32B32Sfloat);
+			attributeDescriptions[0].setOffset(offsetof(Vertex, pos));
 
-		attributeDescriptions[2].setBinding(0);
-		attributeDescriptions[2].setLocation(2);
-		attributeDescriptions[2].setFormat(vk::Format::eR32G32Sfloat);
-		attributeDescriptions[2].setOffset(offsetof(Vertex, tex));
-		return attributeDescriptions;
-	}
-};
+			attributeDescriptions[1].setBinding(0);
+			attributeDescriptions[1].setLocation(1);
+			attributeDescriptions[1].setFormat(vk::Format::eR32G32B32Sfloat);
+			attributeDescriptions[1].setOffset(offsetof(Vertex, colour));
+
+			attributeDescriptions[2].setBinding(0);
+			attributeDescriptions[2].setLocation(2);
+			attributeDescriptions[2].setFormat(vk::Format::eR32G32Sfloat);
+			attributeDescriptions[2].setOffset(offsetof(Vertex, tex));
+			return attributeDescriptions;
+		}
+	};
+}

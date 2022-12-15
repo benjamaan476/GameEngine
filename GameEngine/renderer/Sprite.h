@@ -2,23 +2,45 @@
 
 #include "../EngineCore.h"
 #include "RendererCore.h"
-struct Sprite
+#include "../ApplicationCore.h"
+namespace egkr
 {
-	static inline std::vector<Vertex> vertices
+	struct SpriteUbo
 	{
-		{{0.f, 1.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 1.f} },
-		{{0.f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f} },
-		{{1.f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 0.f} },
-		{{1.f, 1.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f} }
+		glm::mat4 model{};
+		glm::mat4 projection{};
 	};
 
-	glm::vec2 size;
-	Texture2D sprite;
-};
+	struct Sprite
+	{
+		static inline std::vector<Vertex> vertices
+		{
+			{{0.f, 1.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f} },
+			{{0.f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 1.f} },
+			{{1.f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f} },
+			{{1.f, 1.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 0.f} }
+		};
 
-struct ubo
-{
-	glm::mat4 model;
-	glm::mat4 projection;
-};
+		float2 size{};
+		Texture2D texture;
+		std::vector<vk::DescriptorSet> descriptor{};
+		std::array<Buffer, 2> uboBuffer{};
+		SpriteUbo ubo{};
 
+		void destory()
+		{
+			for (auto& buffer : uboBuffer)
+			{
+				buffer.destroy();
+			}
+		}
+
+		~Sprite()
+		{
+
+		}
+	};
+
+
+
+}

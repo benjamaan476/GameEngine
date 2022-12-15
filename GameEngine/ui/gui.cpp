@@ -76,8 +76,8 @@ private:
 	bool addRgbColor(std::string_view label, float3& var, bool sameLine = false);
 	bool addRgbaColor(std::string_view label, float4& var, bool sameLine = false);
 
-	void addImage(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
-	bool addImageButton(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
+	void addImage(std::string_view label, const egkr::Texture2D& image, vk::Sampler sampler, float2 size = float2{}, bool maintainRatio = true, bool sameLine = false);
+	bool addImageButton(std::string_view label, const egkr::Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio = true, bool sameLine = false);
 
 	template<typename T>
 	bool addScalarVar(std::string_view label, T& var, T minVal = std::numeric_limits<T>::lowest(), T maxVal = std::numeric_limits<T>::max(), T step = 1.0f, bool sameLine = false, const char* displayFormat = nullptr);
@@ -539,7 +539,7 @@ bool GuiImpl::addRgbaColor(std::string_view label, float4& var, bool sameLine)
 	return ImGui::ColorEdit4(label.data(), glm::value_ptr(var));
 }
 
-void GuiImpl::addImage(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
+void GuiImpl::addImage(std::string_view label, const egkr::Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (size == float2(0))
 	{
@@ -566,7 +566,7 @@ void GuiImpl::addImage(std::string_view label, const Texture2D& image, vk::Sampl
 	ImGui::PopID();
 }
 
-bool GuiImpl::addImageButton(std::string_view, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
+bool GuiImpl::addImageButton(std::string_view, const egkr::Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (sameLine)
 	{
@@ -852,11 +852,11 @@ void Gui::release()
 
 			for (auto& framebuffer : _uiFramebuffers)
 			{
-				state.device.destroyFramebuffer(framebuffer);
+				egkr::state.device.destroyFramebuffer(framebuffer);
 			}
 
-			state.device.destroyDescriptorPool(_uiPool);
-			state.device.destroyRenderPass(_uiRenderPass);
+			egkr::state.device.destroyDescriptorPool(_uiPool);
+			egkr::state.device.destroyRenderPass(_uiRenderPass);
 
 			ImGui::DestroyContext();
 			_instance.reset();
@@ -873,11 +873,11 @@ Gui::~Gui()
 
 		for (auto& framebuffer : _uiFramebuffers)
 		{
-			state.device.destroyFramebuffer(framebuffer);
+			egkr::state.device.destroyFramebuffer(framebuffer);
 		}
 
-		state.device.destroyDescriptorPool(_uiPool);
-		state.device.destroyRenderPass(_uiRenderPass);
+		egkr::state.device.destroyDescriptorPool(_uiPool);
+		egkr::state.device.destroyRenderPass(_uiRenderPass);
 
 		ImGui::DestroyContext();
 		_instance.reset();
@@ -891,7 +891,7 @@ Gui::SharedPtr Gui::create(float scaleFactor)
 		return _instance;
 	}
 
-	const auto& renderer = Renderer::get();
+	const auto& renderer = egkr::egakeru::get();
 
 	_instance = std::unique_ptr<Gui>(new Gui);
 	_instance->_wrapper = new GuiImpl;
@@ -936,20 +936,20 @@ Gui::SharedPtr Gui::create(float scaleFactor)
 		.setSubpasses(imguiSupass)
 		.setDependencies(imguiSubpassDependency);
 
-	_uiRenderPass = state.device.createRenderPass(imguiInfo);
+	_uiRenderPass = egkr::state.device.createRenderPass(imguiInfo);
 	ENGINE_ASSERT(_uiRenderPass != vk::RenderPass{}, "Failed to create imgui render pass");
 
 	const auto& swapchainImages = renderer.getSwapchainImages();
 
-	_uiCommandBuffers = CommandBuffer(swapchainImages.size());
+	_uiCommandBuffers = egkr::CommandBuffer(swapchainImages.size());
 
-	const uint32_t descriptorCount = 1000;
+	const uint32_t DescriptorCount = 1000;
 
 #define DESCRIPTOR_POOL(name, type)			\
 	vk::DescriptorPoolSize name{};			\
 	name									\
 		.setType(type) 						\
-		.setDescriptorCount(descriptorCount)
+		.setDescriptorCount(DescriptorCount)
 
 
 	DESCRIPTOR_POOL(sampler, vk::DescriptorType::eSampler);
@@ -970,21 +970,21 @@ Gui::SharedPtr Gui::create(float scaleFactor)
 	vk::DescriptorPoolCreateInfo poolInfo{};
 	poolInfo
 		.setPoolSizes(pools)
-		.setMaxSets(descriptorCount * (uint32_t)pools.size())
+		.setMaxSets(DescriptorCount * (uint32_t)pools.size())
 		.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 
-	_uiPool = state.device.createDescriptorPool(poolInfo);
+	_uiPool = egkr::state.device.createDescriptorPool(poolInfo);
 	ENGINE_ASSERT(_uiPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
 
 	ImGui_ImplGlfw_InitForVulkan(window->getWindow(), true);
 
 
 	ImGui_ImplVulkan_InitInfo initInfo{};
-	initInfo.Instance = state.instance;
-	initInfo.PhysicalDevice = state.physicalDevice;
-	initInfo.Device = state.device;
-	initInfo.Queue = state.graphicsQueue;
-	initInfo.QueueFamily = state.queueFamily;
+	initInfo.Instance = egkr::state.instance;
+	initInfo.PhysicalDevice = egkr::state.physicalDevice;
+	initInfo.Device = egkr::state.device;
+	initInfo.Queue = egkr::state.graphicsQueue;
+	initInfo.QueueFamily = egkr::state.queueFamily;
 	initInfo.DescriptorPool = _uiPool;
 	initInfo.Subpass = 0;
 	initInfo.MinImageCount = 2;
@@ -1005,9 +1005,9 @@ Gui::SharedPtr Gui::create(float scaleFactor)
 
 	ENGINE_ASSERT(success, "Failed to initialise vulkan for imgui");
 
-	state.device.resetCommandPool(state.commandPool);
+	egkr::state.device.resetCommandPool(egkr::state.commandPool);
 
-	OneTimeCommandBuffer command{
+	egkr::OneTimeCommandBuffer command{
 		[](vk::CommandBuffer buffer)
 		{
 			ImGui_ImplVulkan_CreateFontsTexture(buffer);
@@ -1100,7 +1100,7 @@ void Gui::render(vk::Extent2D extent, uint32_t currentFrame, uint32_t imageIndex
 	}
 }
 
-void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Texture2D>& _swapchainImages)
+void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<egkr::Texture2D>& _swapchainImages)
 {
 	auto& io = ImGui::GetIO();
 	io.DisplaySize.x = (float)width;
@@ -1108,7 +1108,7 @@ void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Text
 
 	for (auto& framebuffer : _uiFramebuffers)
 	{
-		state.device.destroyFramebuffer(framebuffer);
+		egkr::state.device.destroyFramebuffer(framebuffer);
 	}
 
 	_uiFramebuffers.resize(_swapchainImages.size());
@@ -1123,7 +1123,7 @@ void Gui::onWindowResize(uint32_t width, uint32_t height, const std::vector<Text
 			.setHeight(height)
 			.setLayers(1);
 
-		_uiFramebuffers[i] = state.device.createFramebuffer(imguiFrameBufferInfo);
+		_uiFramebuffers[i] = egkr::state.device.createFramebuffer(imguiFrameBufferInfo);
 	}
 }
 
@@ -1342,7 +1342,7 @@ bool Gui::Widget::rgbaColour(std::string_view label, float4& var, bool sameLine)
 	return _gui ? _gui->_wrapper->addRgbaColor(label, var, sameLine) : false;
 }
 
-void Gui::Widget::image(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
+void Gui::Widget::image(std::string_view label, const egkr::Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine)
 {
 	if (_gui)
 	{
@@ -1350,7 +1350,7 @@ void Gui::Widget::image(std::string_view label, const Texture2D& image, vk::Samp
 	}
 }
 
-void Gui::Widget::imageButton(std::string_view label, const Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine )
+void Gui::Widget::imageButton(std::string_view label, const egkr::Texture2D& image, vk::Sampler sampler, float2 size, bool maintainRatio, bool sameLine )
 {
 	if (_gui)
 	{

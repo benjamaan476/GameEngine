@@ -1,33 +1,36 @@
 #include "CommandBuffer.h"
 
-CommandBuffer::CommandBuffer() {}
-
-CommandBuffer::CommandBuffer(size_t bufferCount)
+namespace egkr
 {
-	vk::CommandBufferAllocateInfo allocInfo{};
-	allocInfo.setCommandPool(state.commandPool);
-	allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
-	allocInfo.setCommandBufferCount(static_cast<uint32_t>(bufferCount));
+	CommandBuffer::CommandBuffer() {}
 
-	commandBuffers = state.device.allocateCommandBuffers(allocInfo);
-
-	for (const auto& commandBuffer : commandBuffers)
+	CommandBuffer::CommandBuffer(size_t bufferCount)
 	{
-		ENGINE_ASSERT(commandBuffer != vk::CommandBuffer{}, "Failed to create command buffer");
+		vk::CommandBufferAllocateInfo allocInfo{};
+		allocInfo.setCommandPool(state.commandPool);
+		allocInfo.setLevel(vk::CommandBufferLevel::ePrimary);
+		allocInfo.setCommandBufferCount(static_cast<uint32_t>(bufferCount));
+
+		commandBuffers = state.device.allocateCommandBuffers(allocInfo);
+
+		for (const auto& commandBuffer : commandBuffers)
+		{
+			ENGINE_ASSERT(commandBuffer != vk::CommandBuffer{}, "Failed to create command buffer");
+		}
 	}
-}
 
-void CommandBuffer::record(uint32_t bufferIndex, uint32_t imageIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer)
-{
-	auto& commandBuffer = commandBuffers[bufferIndex];
+	void CommandBuffer::record(uint32_t bufferIndex, uint32_t imageIndex, std::function<void(vk::CommandBuffer, uint32_t)> recordBuffer)
+	{
+		auto& commandBuffer = commandBuffers[bufferIndex];
 
-	commandBuffer.reset();
+		commandBuffer.reset();
 
-	vk::CommandBufferBeginInfo beginInfo{};
-	beginInfo.setPInheritanceInfo(nullptr);
-	commandBuffer.begin(beginInfo);
+		vk::CommandBufferBeginInfo beginInfo{};
+		beginInfo.setPInheritanceInfo(nullptr);
+		commandBuffer.begin(beginInfo);
 
-	recordBuffer(commandBuffer, imageIndex);
+		recordBuffer(commandBuffer, imageIndex);
 
-	commandBuffer.end();
+		commandBuffer.end();
+	}
 }

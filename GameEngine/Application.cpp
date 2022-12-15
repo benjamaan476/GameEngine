@@ -8,11 +8,10 @@ Application::Application(std::string_view name, uint32_t width, uint32_t height)
 	_instance = this;
 	initWindow(name, width, height);
 
-	Renderer::create();
-	image = Texture2D::createFromFile("chess.png");
+	egkr::egakeru::create();
+	image = egkr::Texture2D::createFromFile("chess.png");
 
-	Renderer::registerImage(image);
-	Renderer::createSprite();
+	chessSprite = egkr::egakeru::createSprite(image);
 	initGui();
 }
 
@@ -82,7 +81,7 @@ void Application::mainLoop()
 			auto count = std::format("counter = {}", counter);
 			wind.text(count, true);
 
-			auto& textureSampler = Renderer::getTextureSampler();
+			auto& textureSampler = egkr::egakeru::getTextureSampler();
 
 			if (dropped)
 			{
@@ -102,20 +101,21 @@ void Application::mainLoop()
 			if (dest)
 			{
 				//Renderer::createImage(payload);
-				image = Texture2D::createFromFile(payload);
+				image = egkr::Texture2D::createFromFile(payload);
 				wind.endDropDestination();
 			}
 
 
-
+			Gui::Window sprite(_gui.get(), "Sprite Editor");
+			sprite.var("Sprite Size", chessSprite.size, 0.f, 1000.f, 10.f);
 
 			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		}
 
-		Renderer::drawFrame(boardProperties);
+		egkr::egakeru::drawFrame(boardProperties, chessSprite);
 	}
 
-	state.device.waitIdle();
+	egkr::state.device.waitIdle();
 }
 
 void Application::destroyUi()
@@ -126,7 +126,9 @@ void Application::destroyUi()
 void Application::cleanup()
 {
 	destroyUi();
-	Renderer::cleanup();
+	chessSprite.destory();
+	image.destroy();
+	egkr::egakeru::cleanup();
 
 }
 
