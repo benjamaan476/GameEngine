@@ -2,6 +2,8 @@
 #include "../EngineCore.h"
 #include "../Application.h"
 
+#include "Initialisers.h"
+
 #include <set>
 #include <string>
 #include <fstream>
@@ -37,6 +39,7 @@ namespace egkr
 
 	void egakeru::create()
 	{
+		PROFILE_FUNCTION()
 		initVulkan();
 		_gui = Gui::get();
 	}
@@ -256,6 +259,7 @@ namespace egkr
 
 	void egakeru::createInstance()
 	{
+		PROFILE_FUNCTION()
 		vk::ApplicationInfo info{};
 		info
 			.setPApplicationName("Hello Triangle")
@@ -297,12 +301,14 @@ namespace egkr
 
 	void egakeru::createSurface()
 	{
+		PROFILE_FUNCTION()
 		const auto& app = Application::get();
 		surface = app.window()->createSurface(state.instance);
 	}
 
 	void egakeru::pickPhysicalDevice()
 	{
+		PROFILE_FUNCTION()
 		auto devices = state.instance.enumeratePhysicalDevices();
 		ENGINE_ASSERT(!devices.empty(), "No supported devices found");
 
@@ -322,6 +328,7 @@ namespace egkr
 
 	void egakeru::createLogicalDevice()
 	{
+		PROFILE_FUNCTION()
 		auto queueIndices = findQueueFamiles(state.physicalDevice);
 
 		std::vector<vk::DeviceQueueCreateInfo> deviceQueueCreateInfos;
@@ -393,6 +400,7 @@ namespace egkr
 
 	void egakeru::createSwapchain()
 	{
+		PROFILE_FUNCTION()
 		auto swapChainSupportDetails = querySwapChainSupport(state.physicalDevice);
 
 		auto surfaceFormat = chooseSwapSurfaceFormat(swapChainSupportDetails.formats);
@@ -452,6 +460,7 @@ namespace egkr
 
 	void egakeru::createRenderPass()
 	{
+		PROFILE_FUNCTION()
 		vk::AttachmentDescription colourAttachment{};
 		colourAttachment.setFormat(_swapchainFormat);
 		colourAttachment.setSamples(vk::SampleCountFlagBits::e1);
@@ -506,12 +515,7 @@ namespace egkr
 
 	void egakeru::createDescriptorSetLayout()
 	{
-		//vk::DescriptorSetLayoutBinding uboLayoutBinding{};
-		//uboLayoutBinding
-		//	.setBinding(0)
-		//	.setDescriptorCount(1)
-		//	.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		//	.setStageFlags(vk::ShaderStageFlagBits::eVertex);
+		PROFILE_FUNCTION()
 
 		vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
 		samplerLayoutBinding
@@ -544,8 +548,11 @@ namespace egkr
 
 	void egakeru::createGraphicsPipeline()
 	{
+		PROFILE_FUNCTION()
 		auto boardVertShaderCode = readShader("boardVert.spv");
+		ENGINE_ASSERT(!boardVertShaderCode.empty(), "Failed to create shader");
 		auto boardFragShaderCode = readShader("boardFrag.spv");
+		ENGINE_ASSERT(!boardFragShaderCode.empty(), "Failed to create shader");
 
 		vertShaderModule = createShaderModule(boardVertShaderCode);
 		fragShaderModule = createShaderModule(boardFragShaderCode);
@@ -574,6 +581,7 @@ namespace egkr
 
 		dynamicStateCreateInfo.setDynamicStates(dynamicStates);
 
+
 		auto bindingDescription = Vertex::getBindingDescription();
 		auto attributeDescription = Vertex::getAttributeDescription();
 
@@ -582,80 +590,24 @@ namespace egkr
 			.setVertexBindingDescriptions(bindingDescription)
 			.setVertexAttributeDescriptions(attributeDescription);
 
-		vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
-		inputAssembly
-			.setTopology(vk::PrimitiveTopology::eTriangleList)
-			.setPrimitiveRestartEnable(false);
+		constexpr auto inputAssembly = initialisers::pipeline::inputAssemblyCreate(vk::PrimitiveTopology::eTriangleList, false);
 
-		vk::Viewport viewport{};
-		viewport
-			.setX(0.f)
-			.setY(0.f)
-			.setWidth((float)swapchainExtent.width)
-			.setHeight((float)swapchainExtent.height)
-			.setMinDepth(0.f)
-			.setMaxDepth(1.f);
+		auto viewportState = initialisers::pipeline::viewportCreate(0.f, 0.f, swapchainExtent, 0.f, 1.f, { 0, 0 });
 
-		vk::Rect2D scissor{};
-		scissor
-			.setOffset({ 0, 0 })
-			.setExtent(swapchainExtent);
-
-		vk::PipelineViewportStateCreateInfo viewportState{};
-		viewportState
-			.setViewports(viewport)
-			.setScissors(scissor);
-
-		vk::PipelineRasterizationStateCreateInfo rasterizer{};
-		rasterizer
-			.setDepthClampEnable(false)
-			.setRasterizerDiscardEnable(false)
-			.setPolygonMode(vk::PolygonMode::eFill)
-			.setLineWidth(1.f)
-			.setCullMode(vk::CullModeFlagBits::eBack)
-			.setFrontFace(vk::FrontFace::eCounterClockwise)
-			.setDepthBiasEnable(false)
-			.setDepthBiasConstantFactor(0.f)
-			.setDepthBiasClamp(0.f)
-			.setDepthBiasSlopeFactor(0.f);
-
-		vk::PipelineMultisampleStateCreateInfo multiSample{};
-
-		multiSample
-			.setSampleShadingEnable(false)
-			.setRasterizationSamples(vk::SampleCountFlagBits::e1)
-			.setMinSampleShading(1.f)
-			.setPSampleMask(nullptr)
-			.setAlphaToCoverageEnable(false)
-			.setAlphaToOneEnable(false);
-
-		vk::PipelineColorBlendAttachmentState colourBlenderAttachment{};
-		colourBlenderAttachment
-			.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
-			.setBlendEnable(false)
-			.setSrcColorBlendFactor(vk::BlendFactor::eOne)
-			.setDstColorBlendFactor(vk::BlendFactor::eOne)
-			.setColorBlendOp(vk::BlendOp::eAdd)
-			.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
-			.setDstAlphaBlendFactor(vk::BlendFactor::eZero)
-			.setAlphaBlendOp(vk::BlendOp::eAdd);
-
-		vk::PipelineDepthStencilStateCreateInfo depthStencilInfo{};
-		depthStencilInfo
-			.setDepthTestEnable(true)
-			.setDepthWriteEnable(true)
-			.setDepthCompareOp(vk::CompareOp::eLess)
-			.setDepthBoundsTestEnable(false)
-			.setStencilTestEnable(false);
+		constexpr auto rasterizer = initialisers::pipeline::rasterizationCreate(false, false, vk::PolygonMode::eFill, 1.f, vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise, false, 0.f, 0.f, 0.f);
+		constexpr auto multisample = initialisers::pipeline::multisampleCreate(false, vk::SampleCountFlagBits::e1, 1.f, false, false);
 
 
-		vk::PipelineColorBlendStateCreateInfo colourBlending{};
-		colourBlending
-			.setLogicOpEnable(false)
-			.setLogicOp(vk::LogicOp::eCopy)
-			.setAttachments(colourBlenderAttachment)
-			.setBlendConstants({ 0.f, 0.f, 0.f, 0.f });
+		constexpr auto colourMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+		constexpr auto blendOne = vk::BlendFactor::eOne;
+		constexpr auto add = vk::BlendOp::eAdd;
+		constexpr auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, false, blendOne, blendOne, add, blendOne, vk::BlendFactor::eZero, add);;
 
+
+		constexpr auto attachments = { colourBlendAttachmentState };
+
+		constexpr auto colourBlendCreate = initialisers::pipeline::colourBlendStateCreate(attachments, false, vk::LogicOp::eCopy, { 0.f, 0.f, 0.f, 0.f });
+		constexpr auto depthStencilInfo = initialisers::pipeline::depthStencilCreate(true, true, vk::CompareOp::eLess, false, false);
 
 		vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo
@@ -672,17 +624,14 @@ namespace egkr
 			.setPInputAssemblyState(&inputAssembly)
 			.setPViewportState(&viewportState)
 			.setPRasterizationState(&rasterizer)
-			.setPMultisampleState(&multiSample)
-			.setPColorBlendState(&colourBlending)
+			.setPMultisampleState(&multisample)
+			.setPColorBlendState(&colourBlendCreate)
 			.setPDynamicState(&dynamicStateCreateInfo)
 			.setPDepthStencilState(&depthStencilInfo)
 			.setLayout(pipelineLayout)
 			.setRenderPass(renderPass)
 			.setSubpass(0)
-			//pipelineInfo.setBasePipelineHandle(VK_NULL_HANDLE);
 			.setBasePipelineIndex(-1);
-
-
 
 		auto createInfos = { pipelineInfo };
 
@@ -697,6 +646,8 @@ namespace egkr
 
 	vk::ShaderModule egakeru::createShaderModule(const std::vector<char>& code)
 	{
+		
+		PROFILE_FUNCTION()
 		vk::ShaderModuleCreateInfo createInfo{};
 
 		createInfo.setCodeSize(code.size());
@@ -710,6 +661,7 @@ namespace egkr
 
 	void egakeru::createFramebuffers()
 	{
+		PROFILE_FUNCTION()
 		swapChainFramebuffers.resize(0);
 		for (const auto& image : _swapchainImages)
 		{
@@ -735,6 +687,7 @@ namespace egkr
 
 	void egakeru::createCommandPool()
 	{
+		PROFILE_FUNCTION()
 		auto queuFamilyIndices = findQueueFamiles(state.physicalDevice);
 
 		vk::CommandPoolCreateInfo poolInfo{};
@@ -960,6 +913,7 @@ namespace egkr
 
 	void egakeru::drawFrame(const BoardProperties& boardProperties, const Sprite& sprite)
 	{
+		PROFILE_FUNCTION()
 		auto result = state.device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
 		ENGINE_ASSERT(result == vk::Result::eSuccess, "Failed to get fence");
 
@@ -1078,6 +1032,7 @@ namespace egkr
 
 	void egakeru::recreateSwapChain()
 	{
+		PROFILE_FUNCTION()
 		const auto& app = Application::get();
 		const auto& window = app.window();
 
@@ -1117,6 +1072,7 @@ namespace egkr
 
 	void egakeru::cleanup()
 	{
+		PROFILE_FUNCTION()
 		SpriteRenderer::destroy();
 
 		cleanupSwapchain();

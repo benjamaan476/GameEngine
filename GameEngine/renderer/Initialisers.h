@@ -1,0 +1,127 @@
+#pragma once
+
+#include "RendererCore.h"
+
+namespace egkr::initialisers
+{
+	namespace pipeline
+	{
+		auto viewportCreate(float x, float y, vk::Extent2D swapchainExtent, float minDepth, float maxDepth, vk::Offset2D offset)
+		{
+			vk::Viewport viewport{};
+			viewport
+				.setX(x)
+				.setY(y)
+				.setWidth((float)swapchainExtent.width)
+				.setHeight((float)swapchainExtent.height)
+				.setMinDepth(minDepth)
+				.setMaxDepth(maxDepth);
+
+			vk::Rect2D scissor{};
+			scissor
+				.setOffset(offset)
+				.setExtent(swapchainExtent);
+
+			vk::PipelineViewportStateCreateInfo viewportCreate{};
+			return viewportCreate
+				.setViewports(viewport)
+				.setScissors(scissor);
+		}
+
+		auto vertexInputCreate() noexcept
+		{
+
+			auto bindingDescription = Vertex::getBindingDescription();
+			auto attributeDescription = Vertex::getAttributeDescription();
+
+
+			vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
+
+			return vertexInputInfo
+				.setVertexBindingDescriptions(bindingDescription)
+				//.setPVertexBindingDescriptions(&bindingDescription);
+				.setVertexAttributeDescriptions(attributeDescription);
+				//.setVertexAttributeDescriptionCount((uint32_t)attributeDescription.size())
+				//.setPVertexAttributeDescriptions(attributeDescription.data());
+		}
+
+		consteval auto inputAssemblyCreate(vk::PrimitiveTopology topology, bool restartEnabled) noexcept
+		{
+			vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
+			
+			return inputAssembly
+				.setTopology(topology)
+				.setPrimitiveRestartEnable(restartEnabled);
+		}
+
+		consteval auto rasterizationCreate(bool depthClampEnabled, bool discardEnabled, vk::PolygonMode mode, float lineWidth, vk::CullModeFlagBits cullMode, vk::FrontFace frontFace, bool biasEnabled, float biadConstantFactor, float biasClamp, float biasSlopeFactor)
+		{
+			vk::PipelineRasterizationStateCreateInfo rasterizationCreate{};
+
+			return rasterizationCreate
+				.setDepthClampEnable(depthClampEnabled)
+				.setRasterizerDiscardEnable(discardEnabled)
+				.setPolygonMode(mode)
+				.setLineWidth(lineWidth)
+				.setCullMode(cullMode)
+				.setFrontFace(frontFace)
+				.setDepthBiasEnable(biasEnabled)
+				.setDepthBiasConstantFactor(biadConstantFactor)
+				.setDepthBiasClamp(biasClamp)
+				.setDepthBiasSlopeFactor(biasSlopeFactor);
+		}
+
+		consteval auto multisampleCreate(bool sampleShadingEnabled, vk::SampleCountFlagBits samples, float minSampleShading, bool alphaCoverageEnabled, bool alphaToOneEnabled)
+		{
+			vk::PipelineMultisampleStateCreateInfo multisampleCreate{};
+
+			return multisampleCreate
+				.setSampleShadingEnable(sampleShadingEnabled)
+				.setRasterizationSamples(samples)
+				.setMinSampleShading(minSampleShading)
+				.setPSampleMask(nullptr)
+				.setAlphaToCoverageEnable(alphaCoverageEnabled)
+				.setAlphaToOneEnable(alphaToOneEnabled);
+		}
+
+		consteval auto colourBlendAttachementState(vk::ColorComponentFlags colourMask, bool blendEnabled, vk::BlendFactor srcColourBlend, vk::BlendFactor dstColourBlend, vk::BlendOp colourBlendOp, vk::BlendFactor srcAlphaBlend, vk::BlendFactor dstAlphaBlend, vk::BlendOp alphaBlendOp)
+		{
+			vk::PipelineColorBlendAttachmentState colourBlendState{};
+
+			return colourBlendState
+				.setColorWriteMask(colourMask)
+				.setBlendEnable(blendEnabled)
+				.setSrcColorBlendFactor(srcColourBlend)
+				.setDstColorBlendFactor(dstColourBlend)
+				.setColorBlendOp(colourBlendOp)
+				.setSrcAlphaBlendFactor(srcAlphaBlend)
+				.setDstAlphaBlendFactor(dstAlphaBlend)
+				.setAlphaBlendOp(alphaBlendOp);
+		}
+
+		consteval auto depthStencilCreate(bool enabled, bool writeEnabled, vk::CompareOp compareOp, bool boundsEnabled, bool stencilEnabled)
+		{
+			vk::PipelineDepthStencilStateCreateInfo depthStencilInfo{};
+
+			return depthStencilInfo
+				.setDepthTestEnable(enabled)
+				.setDepthWriteEnable(writeEnabled)
+				.setDepthCompareOp(compareOp)
+				.setDepthBoundsTestEnable(boundsEnabled)
+				.setStencilTestEnable(stencilEnabled);
+		}
+
+		consteval auto colourBlendStateCreate(std::span<const vk::PipelineColorBlendAttachmentState> attachements, bool logicOpEnabled, vk::LogicOp logicOp, const std::array<float, 4>& blendConstants)
+		{
+			vk::PipelineColorBlendStateCreateInfo colourBlendState{};
+
+			return colourBlendState
+				.setAttachmentCount((uint32_t)attachements.size())
+				.setPAttachments(attachements.data())
+				.setLogicOpEnable(logicOpEnabled)
+				.setLogicOp(logicOp)
+				.setBlendConstants(blendConstants);
+		}
+
+	}
+}

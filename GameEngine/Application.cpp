@@ -1,10 +1,13 @@
 #include "Application.h"
 #include "Log/Log.h"
 
+#include "Instrumentor.h"
+
 Application::Application(std::string_view name, uint32_t width, uint32_t height)
 {
 	Log::Init();
-	LOG_INFO("Initialized");
+	LOG_INFO("Hello");
+	PROFILE_BEGIN_SESSION("Startup", "GameEngine-Startup.json");
 	_instance = this;
 	initWindow(name, width, height);
 
@@ -13,6 +16,7 @@ Application::Application(std::string_view name, uint32_t width, uint32_t height)
 
 	chessSprite = egkr::egakeru::createSprite(image);
 	initGui();
+	PROFILE_END_SESSION();
 }
 
 void Application::run()
@@ -23,6 +27,7 @@ void Application::run()
 
 void Application::initWindow(std::string_view name, uint32_t width, uint32_t height)
 {
+	PROFILE_FUNCTION()
 	WindowProperties windowProperties{ name.data(), width, height};
 
 	auto callback = std::bind(&Application::dragDropCallback, this, std::placeholders::_1, std::placeholders::_2);
@@ -105,10 +110,9 @@ void Application::mainLoop()
 				wind.endDropDestination();
 			}
 
-
 			Gui::Window sprite(_gui.get(), "Sprite Editor");
 			sprite.var("Sprite Size", chessSprite.size, 0.f, 1000.f, 10.f);
-
+			sprite.var("Sprite Position", chessSprite.position, 0.f, 1000.f, 10.f);
 			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		}
 

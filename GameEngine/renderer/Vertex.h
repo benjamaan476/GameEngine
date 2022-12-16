@@ -7,7 +7,7 @@ namespace egkr
 		glm::vec3 colour;
 		glm::vec2 tex;
 
-		static vk::VertexInputBindingDescription getBindingDescription()
+		consteval static vk::VertexInputBindingDescription getBindingDescription() noexcept
 		{
 			vk::VertexInputBindingDescription bindingDescription{};
 			bindingDescription.setBinding(0);
@@ -16,7 +16,7 @@ namespace egkr
 			return bindingDescription;
 		}
 
-		static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescription()
+		consteval static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescription() noexcept
 		{
 			std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
 

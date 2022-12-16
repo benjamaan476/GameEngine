@@ -1,5 +1,7 @@
 #pragma once
 
+#include "RendererState.h"
+
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "RendererState.h"
