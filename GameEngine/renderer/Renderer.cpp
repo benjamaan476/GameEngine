@@ -77,7 +77,7 @@ namespace egkr
 		auto swapChainSupport = querySwapChainSupport(device);
 		auto swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 
-		return properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader && queueIndices.isComplete() && swapChainAdequate;
+		return (properties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu || properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)  && features.geometryShader && queueIndices.isComplete() && swapChainAdequate;
 	}
 
 	bool egakeru::checkDeviceExtensionSupport(const vk::PhysicalDevice& physicalDevice)

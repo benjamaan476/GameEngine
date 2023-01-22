@@ -23,6 +23,7 @@ namespace egkr
 
 		float2 size{};
 		float3 position{};
+		float rotation{};
 		Texture2D texture;
 		std::vector<vk::DescriptorSet> descriptor{};
 		std::array<Buffer, 2> uboBuffer{};

@@ -218,6 +218,8 @@ namespace egkr
 		auto model = glm::mat4(1.f);
 		model = glm::translate(model, sprite.position);
 		model = glm::translate(model, glm::vec3(0.5 * sprite.size.x, 0.5 * sprite.size.y, 0.f));
+		model = glm::rotate(model, glm::radians(sprite.rotation), glm::vec3(0.f, 0.f, 1.f));
+		model = glm::translate(model, glm::vec3(-0.5f * sprite.size.x, -0.5f * sprite.size.y, 0.f));
 		model = glm::scale(model, glm::vec3(sprite.size, 1.f));
 		//model = glm::translate(model, glm::vec3(-0.5f * sprite.size.x, -0.5f * sprite.size.y, 0.0f));
 		auto uboData = egkr::SpriteUbo
