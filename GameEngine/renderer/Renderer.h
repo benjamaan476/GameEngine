@@ -18,7 +18,7 @@ namespace egkr
 	public:
 		static void create();
 		static void cleanup();
-		static void drawFrame(const BoardProperties& boardProperties, const Sprite& sprite);
+		static void drawFrame(const BoardProperties& boardProperties);
 
 		static egakeru& get() { return *_instance; }
 		static vk::Format getFormat() { return _swapchainFormat; }
@@ -27,7 +27,7 @@ namespace egkr
 		static const inline vk::Sampler getSampler() { return textureSampler; }
 		static const inline vk::PipelineLayout getPipelineLayout() { return pipelineLayout; }
 
-		static egkr::Sprite createSprite(const Texture2D& texture);
+		static std::shared_ptr<egkr::Sprite> createSprite(const Texture2D& texture);
 
 		//static void createImage(std::string_view imagePath);
 		static vk::ShaderModule createShaderModule(const std::vector<char>& code);
@@ -142,10 +142,10 @@ namespace egkr
 
 		static const inline std::vector<Vertex> vertices
 		{
-			{{-0.5f, -0.5f, 0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
-			{ {0.5f, -0.5f, 0.5f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
-			{{0.5f, 0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-			{{-0.5f, 0.5f, 0.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
+			{{-0.5f, -0.5f, 0.5f, 1.f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
+			{ {0.5f, -0.5f, 0.5f, 1.f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
+			{{0.5f, 0.5f, 0.5f, 1.f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
+			{{-0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
 		};
 
 		static const inline std::vector<uint32_t> indices =

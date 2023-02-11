@@ -5,21 +5,17 @@
 #include "../ApplicationCore.h"
 namespace egkr
 {
-	struct SpriteUbo
-	{
-		glm::mat4 model{};
-		glm::mat4 projection{};
-	};
-
 	struct Sprite
 	{
 		static inline std::vector<Vertex> vertices
 		{
-			{{0.f, 1.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f} },
-			{{0.f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 1.f} },
-			{{1.f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f} },
-			{{1.f, 1.f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 0.f} }
+			{{0.f, 1.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {0.f, 0.f} },
+			{{0.f, 0.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {0.f, 1.f} },
+			{{1.f, 0.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {1.f, 1.f} },
+			{{1.f, 1.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {1.f, 0.f} }
 		};
+
+		std::array<Vertex, 6> verts{};
 
 		float2 size{};
 		float3 position{};
@@ -27,7 +23,6 @@ namespace egkr
 		Texture2D texture;
 		std::vector<vk::DescriptorSet> descriptor{};
 		std::array<Buffer, 2> uboBuffer{};
-		SpriteUbo ubo{};
 
 		void destory()
 		{

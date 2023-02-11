@@ -6,44 +6,20 @@ namespace egkr::initialisers
 {
 	namespace pipeline
 	{
-		auto viewportCreate(float x, float y, vk::Extent2D swapchainExtent, float minDepth, float maxDepth, vk::Offset2D offset)
+		auto viewportCreate(float x, float y, vk::Extent2D swapchainExtent, float minDepth, float maxDepth, vk::Offset2D offset) -> vk::PipelineViewportStateCreateInfo;
+
+
+		constexpr auto shaderCreate(vk::ShaderStageFlagBits shaderStage, std::string_view entry, vk::ShaderModule module) noexcept
 		{
-			vk::Viewport viewport{};
-			viewport
-				.setX(x)
-				.setY(y)
-				.setWidth((float)swapchainExtent.width)
-				.setHeight((float)swapchainExtent.height)
-				.setMinDepth(minDepth)
-				.setMaxDepth(maxDepth);
-
-			vk::Rect2D scissor{};
-			scissor
-				.setOffset(offset)
-				.setExtent(swapchainExtent);
-
-			vk::PipelineViewportStateCreateInfo viewportCreate{};
-			return viewportCreate
-				.setViewports(viewport)
-				.setScissors(scissor);
+			vk::PipelineShaderStageCreateInfo shaderStageInfo{};
+			return shaderStageInfo
+				.setStage(shaderStage)
+				.setPName(entry.data())
+				.setModule(module);
 		}
 
-		auto vertexInputCreate() noexcept
-		{
+		auto vertexInputCreate() noexcept -> vk::PipelineVertexInputStateCreateInfo;
 
-			auto bindingDescription = Vertex::getBindingDescription();
-			auto attributeDescription = Vertex::getAttributeDescription();
-
-
-			vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-
-			return vertexInputInfo
-				.setVertexBindingDescriptions(bindingDescription)
-				//.setPVertexBindingDescriptions(&bindingDescription);
-				.setVertexAttributeDescriptions(attributeDescription);
-				//.setVertexAttributeDescriptionCount((uint32_t)attributeDescription.size())
-				//.setPVertexAttributeDescriptions(attributeDescription.data());
-		}
 
 		consteval auto inputAssemblyCreate(vk::PrimitiveTopology topology, bool restartEnabled) noexcept
 		{

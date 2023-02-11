@@ -4,24 +4,32 @@
 #include "RendererCore.h"
 #include "RendererState.h"
 
+#include "Initialisers.h"
+
 namespace egkr
 {
-	void SpriteRenderer::create(vk::GraphicsPipelineCreateInfo basePipeline)
+	void SpriteRenderer::create(vk::GraphicsPipelineCreateInfo basePipeline, vk::Extent2D swapchainExtent)
 	{
 		PROFILE_FUNCTION()
-		DESCRIPTOR_POOL(sampler, vk::DescriptorType::eSampler);
-		DESCRIPTOR_POOL(combinedSample, vk::DescriptorType::eCombinedImageSampler);
-		DESCRIPTOR_POOL(sampled, vk::DescriptorType::eSampledImage);
-		DESCRIPTOR_POOL(storageImage, vk::DescriptorType::eStorageImage);
-		DESCRIPTOR_POOL(uniformTexel, vk::DescriptorType::eUniformTexelBuffer);
-		DESCRIPTOR_POOL(storageTexel, vk::DescriptorType::eStorageTexelBuffer);
-		DESCRIPTOR_POOL(uniform, vk::DescriptorType::eUniformBuffer);
-		DESCRIPTOR_POOL(storage, vk::DescriptorType::eStorageBuffer);
-		DESCRIPTOR_POOL(uniformDynamic, vk::DescriptorType::eUniformBufferDynamic);
-		DESCRIPTOR_POOL(storageDynamic, vk::DescriptorType::eStorageBufferDynamic);
-		DESCRIPTOR_POOL(input, vk::DescriptorType::eInputAttachment);
 
-		auto descriptorPools = { uniform, combinedSample };
+		vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
+		samplerLayoutBinding
+			.setBinding(0)
+			.setDescriptorCount(1)
+			.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+			.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+		auto bindings = { samplerLayoutBinding };
+		vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+		layoutInfo.setBindings(bindings);
+
+		_descriptorSetLayout = state.device.createDescriptorSetLayout(layoutInfo);
+		ENGINE_ASSERT(_descriptorSetLayout != vk::DescriptorSetLayout{}, "Failed to create descriptor set");
+
+
+		DESCRIPTOR_POOL(combinedSample, vk::DescriptorType::eCombinedImageSampler);
+
+		auto descriptorPools = { combinedSample };
 
 		vk::DescriptorPoolCreateInfo info{};
 		info.setPoolSizes(descriptorPools);
@@ -35,6 +43,21 @@ namespace egkr
 
 		vertShaderModule = egakeru::createShaderModule(spriteVertShaderCode);
 		fragShaderModule = egakeru::createShaderModule(spriteFragShaderCode);
+
+
+		auto bindingDescription = Vertex::getBindingDescription();
+		auto attributeDescription = Vertex::getAttributeDescription();
+
+		vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
+		vertexInputInfo
+			.setVertexBindingDescriptions(bindingDescription)
+			.setVertexAttributeDescriptions(attributeDescription);
+
+		constexpr auto inputAssembly = initialisers::pipeline::inputAssemblyCreate(vk::PrimitiveTopology::eTriangleList, false);
+		auto viewportState = initialisers::pipeline::viewportCreate(0.f, 0.f, swapchainExtent, 0.f, 1.f, { 0, 0 });
+
+		constexpr auto rasterizer = initialisers::pipeline::rasterizationCreate(false, false, vk::PolygonMode::eFill, 1.f, vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise, false, 0.f, 0.f, 0.f);
+		constexpr auto multisample = initialisers::pipeline::multisampleCreate(false, vk::SampleCountFlagBits::e1, 1.f, false, false);
 
 		vk::PipelineShaderStageCreateInfo spriteVertShaderStageInfo{};
 		spriteVertShaderStageInfo
@@ -50,37 +73,56 @@ namespace egkr
 
 		auto spriteShaderStages = { spriteVertShaderStageInfo, spriteFragShaderStageInfo };
 
-		vk::PipelineColorBlendAttachmentState colourBlenderAttachment2{};
-		colourBlenderAttachment2
-			.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
-			.setBlendEnable(true)
-			.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
-			.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
-			.setColorBlendOp(vk::BlendOp::eAdd)
-			.setSrcAlphaBlendFactor(vk::BlendFactor::eSrcAlpha)
-			.setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
-			.setAlphaBlendOp(vk::BlendOp::eAdd);
+		//vk::PipelineColorBlendAttachmentState colourBlenderAttachment2{};
+		//colourBlenderAttachment2
+		//	.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
+		//	.setBlendEnable(true)
+		//	.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
+		//	.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+		//	.setColorBlendOp(vk::BlendOp::eAdd)
+		//	.setSrcAlphaBlendFactor(vk::BlendFactor::eSrcAlpha)
+		//	.setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+		//	.setAlphaBlendOp(vk::BlendOp::eAdd);
+		constexpr auto colourMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+		constexpr auto blendOne = vk::BlendFactor::eOne;
+		constexpr auto add = vk::BlendOp::eAdd;
+		constexpr auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, true, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, add, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, add);
 
+		constexpr auto colourBlendAttachments = { colourBlendAttachmentState };
+		constexpr auto colourBlendCreate = egkr::initialisers::pipeline::colourBlendStateCreate(colourBlendAttachments, false, vk::LogicOp::eCopy, { 1.f, 1.f, 1.f, 1.f });
 
-		vk::PipelineColorBlendStateCreateInfo colourBlending2{};
-		colourBlending2
-			.setLogicOpEnable(false)
-			.setLogicOp(vk::LogicOp::eCopy)
-			.setAttachments(colourBlenderAttachment2)
-			.setBlendConstants({ 1.f, 1.f, 1.f, 1.f });
+		auto dynamicStates =
+		{
+			vk::DynamicState::eViewport,
+			vk::DynamicState::eScissor
+		};
+
+		vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
+
+		dynamicStateCreateInfo.setDynamicStates(dynamicStates);
+
+		constexpr auto depthStencilInfo = initialisers::pipeline::depthStencilCreate(true, true, vk::CompareOp::eLess, false, false);
+
+		vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+		pipelineLayoutInfo
+			.setPushConstantRanges(nullptr)
+			.setSetLayouts(_descriptorSetLayout);
+
+		pipelineLayout = state.device.createPipelineLayout(pipelineLayoutInfo);
+		ENGINE_ASSERT(pipelineLayout != vk::PipelineLayout{}, "FAiled to create pipeline layout");
 
 		vk::GraphicsPipelineCreateInfo spritePipelineInfo{};
 		spritePipelineInfo
 			.setStages(spriteShaderStages)
-			.setPVertexInputState(basePipeline.pVertexInputState)
-			.setPInputAssemblyState(basePipeline.pInputAssemblyState)
-			.setPViewportState(basePipeline.pViewportState)
-			.setPRasterizationState(basePipeline.pRasterizationState)
-			.setPMultisampleState(basePipeline.pMultisampleState)
-			.setPColorBlendState(&colourBlending2)
-			.setPDynamicState(basePipeline.pDynamicState)
-			.setPDepthStencilState(basePipeline.pDepthStencilState)
-			.setLayout(basePipeline.layout)
+			.setPVertexInputState(&vertexInputInfo)
+			.setPInputAssemblyState(&inputAssembly)
+			.setPViewportState(&viewportState)
+			.setPRasterizationState(&rasterizer)
+			.setPMultisampleState(&multisample)
+			.setPColorBlendState(&colourBlendCreate)
+			.setPDynamicState(&dynamicStateCreateInfo)
+			.setPDepthStencilState(&depthStencilInfo)
+			.setLayout(pipelineLayout)
 			.setRenderPass(basePipeline.renderPass)
 			.setBasePipelineIndex(-1);
 
@@ -115,55 +157,17 @@ namespace egkr
 		stagingBuffer.destroy();
 	}
 
-	Sprite SpriteRenderer::createSprite(glm::vec2 size, const Texture2D& texture)
+	std::shared_ptr<Sprite> SpriteRenderer::createSprite(glm::vec2 size, const Texture2D& texture)
 	{
 		PROFILE_FUNCTION()
-		auto sprite = egkr::Sprite{ .size = size, .texture = texture };
+		auto sprite = std::make_shared<egkr::Sprite>();
+		sprite->size = size;
+		sprite->texture = texture;
 
-		BufferProperties uboProperties =
-		{
-			.size = sizeof(egkr::SpriteUbo),
-			.usage = vk::BufferUsageFlagBits::eUniformBuffer,
-			.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
-		};
-
-		for (size_t i = 0; i < sprite.uboBuffer.size(); i++)
-		{
-
-			sprite.uboBuffer[i] = Buffer(uboProperties);
-		}
-
-		vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
-		samplerLayoutBinding
-			.setBinding(1)
-			.setDescriptorCount(1)
-			.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-			.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-		vk::DescriptorSetLayoutBinding fragUboBinding{};
-		fragUboBinding
-			.setBinding(0)
-			.setDescriptorCount(1)
-			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-			.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
-		vk::DescriptorSetLayoutBinding cameraUboBinding{};
-		cameraUboBinding
-			.setBinding(2)
-			.setDescriptorCount(1)
-			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-			.setStageFlags(vk::ShaderStageFlagBits::eVertex);
-
-		auto bindings = { samplerLayoutBinding, fragUboBinding, cameraUboBinding };
-		vk::DescriptorSetLayoutCreateInfo layoutInfo{};
-		layoutInfo.setBindings(bindings);
-
-		descriptorSetLayout = state.device.createDescriptorSetLayout(layoutInfo/*, state.allocator*/);
-		ENGINE_ASSERT(descriptorSetLayout != vk::DescriptorSetLayout{}, "Failed to create descriptor set");
 
 		//for (size_t i = 0; i < sprite.uboBuffer.size(); i++)
 		{
-			std::vector<vk::DescriptorSetLayout> layouts(MaxFramesInFlight, descriptorSetLayout);
+			std::vector<vk::DescriptorSetLayout> layouts(MaxFramesInFlight, _descriptorSetLayout);
 
 			vk::DescriptorSetAllocateInfo allocInfo{};
 			allocInfo
@@ -171,7 +175,7 @@ namespace egkr
 				.setDescriptorSetCount(MaxFramesInFlight)
 				.setSetLayouts(layouts);
 
-			sprite.descriptor = state.device.allocateDescriptorSets(allocInfo);
+			sprite->descriptor = state.device.allocateDescriptorSets(allocInfo);
 		}
 		std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
 
@@ -182,71 +186,97 @@ namespace egkr
 
 			vk::WriteDescriptorSet piecesDescriptorSet{};
 			piecesDescriptorSet
-				.setDstSet(sprite.descriptor[i])
-				.setDstBinding(1)
+				.setDstSet(sprite->descriptor[i])
+				.setDstBinding(0)
 				.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-				.setImageInfo(sprite.texture._imageInfo);
+				.setImageInfo(sprite->texture._imageInfo);
 
 			writeDescriptorSets.push_back(piecesDescriptorSet);
 
-			vk::DescriptorBufferInfo bufferInfo{};
-			bufferInfo
-				.setBuffer(sprite.uboBuffer[i].buffer)
-				.setOffset(0)
-				.setRange(sizeof(egkr::SpriteUbo));
-
-			vk::WriteDescriptorSet descriptorWrite{};
-			descriptorWrite
-				.setDstSet(sprite.descriptor[i])
-				.setDstBinding(2)
-				.setDstArrayElement(0)
-				.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-				.setBufferInfo(bufferInfo);
-
-			writeDescriptorSets.push_back(descriptorWrite);
 		}
 
 		state.device.updateDescriptorSets(writeDescriptorSets, nullptr);
+
+		sprites.emplace_back(sprite);
 		return sprite;
 	}
 
-	void SpriteRenderer::renderSprite(egkr::Sprite sprite, vk::CommandBuffer commandBuffer, uint32_t currentFrame)
+	void SpriteRenderer::render(vk::CommandBuffer commandBuffer, uint32_t currentFrame)
 	{
 		PROFILE_FUNCTION()
 		auto ortho = glm::ortho(0.f, 800.f, 600.f, 0.f, -1.f, 1.f);
+		std::vector<Vertex> staging{};
 
-		auto model = glm::mat4(1.f);
-		model = glm::translate(model, sprite.position);
-		model = glm::translate(model, glm::vec3(0.5 * sprite.size.x, 0.5 * sprite.size.y, 0.f));
-		model = glm::rotate(model, glm::radians(sprite.rotation), glm::vec3(0.f, 0.f, 1.f));
-		model = glm::translate(model, glm::vec3(-0.5f * sprite.size.x, -0.5f * sprite.size.y, 0.f));
-		model = glm::scale(model, glm::vec3(sprite.size, 1.f));
-		//model = glm::translate(model, glm::vec3(-0.5f * sprite.size.x, -0.5f * sprite.size.y, 0.0f));
-		auto uboData = egkr::SpriteUbo
+		vk::DeviceSize bufferSize = sizeof(egkr::Sprite::vertices[0]) * egkr::Sprite::vertices.size() * sprites.size();
+
+		BufferProperties properties =
 		{
-			.model = model,
-			.projection = ortho
+			.size = bufferSize,
+			.usage = vk::BufferUsageFlagBits::eTransferSrc,
+			.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
 		};
 
-		sprite.uboBuffer[currentFrame].map(&uboData);
+		auto stagingBuffer = Buffer(properties);
+
+		for (const auto& sprite : sprites)
+		{
+
+			auto model = glm::mat4(1.f);
+			model = glm::translate(model, sprite->position);
+			model = glm::translate(model, glm::vec3(0.5 * sprite->size.x, 0.5 * sprite->size.y, 0.f));
+			model = glm::rotate(model, glm::radians(sprite->rotation), glm::vec3(0.f, 0.f, 1.f));
+			model = glm::translate(model, glm::vec3(-0.5f * sprite->size.x, -0.5f * sprite->size.y, 0.f));
+			model = glm::scale(model, glm::vec3(sprite->size, 1.f));
+			//model = glm::translate(model, glm::vec3(-0.5f * sprite.size.x, -0.5f * sprite.size.y, 0.0f));
+
+
+			{
+				Vertex vert{};
+				for (auto i = 0u; i < 4; i++)
+				{
+					vert = Sprite::vertices[i];
+					vert.pos = ortho * model * Sprite::vertices[i].pos;
+					staging.emplace_back(vert);
+				}
+
+			}
+
+		}
 
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, spritePipeline);
-		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, egakeru::getPipelineLayout(), 0, sprite.descriptor[currentFrame], nullptr);
+
+		for (auto& sprite : sprites)
+		{
+
+			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, sprite->descriptor[currentFrame], nullptr);
+		}
+
+
+
+
+		stagingBuffer.map(staging.data());
+		vertexBuffer.copy(stagingBuffer);
 
 		vk::DeviceSize offsets = { 0 };
 		commandBuffer.bindVertexBuffers(0, vertexBuffer.buffer, offsets);
 		commandBuffer.drawIndexed(6, 1, 0, 0, 0);
+
+		stagingBuffer.destroy();
 	}
 
 	void SpriteRenderer::destroy()
 	{
 		PROFILE_FUNCTION()
+
+		for (auto& sprite : sprites)
+		{
+			sprite->destory();
+		}
 		state.device.destroyShaderModule(vertShaderModule);
 		state.device.destroyShaderModule(fragShaderModule);
 
-
 		state.device.destroyPipeline(spritePipeline);
-		state.device.destroyDescriptorSetLayout(descriptorSetLayout);
+		state.device.destroyDescriptorSetLayout(_descriptorSetLayout);
 		state.device.destroyDescriptorPool(descriptorPool);
 		vertexBuffer.destroy();
 	}

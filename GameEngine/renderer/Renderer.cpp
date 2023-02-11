@@ -517,13 +517,6 @@ namespace egkr
 	{
 		PROFILE_FUNCTION()
 
-		vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
-		samplerLayoutBinding
-			.setBinding(1)
-			.setDescriptorCount(1)
-			.setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-			.setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
 		vk::DescriptorSetLayoutBinding fragUboBinding{};
 		fragUboBinding
 			.setBinding(0)
@@ -531,14 +524,7 @@ namespace egkr
 			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
 			.setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
-		vk::DescriptorSetLayoutBinding cameraUboBinding{};
-		cameraUboBinding
-			.setBinding(2)
-			.setDescriptorCount(1)
-			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-			.setStageFlags(vk::ShaderStageFlagBits::eVertex);
-
-		auto bindings = { /*uboLayoutBinding,*/ samplerLayoutBinding, fragUboBinding, cameraUboBinding };
+		auto bindings = { fragUboBinding };
 		vk::DescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.setBindings(bindings);
 
@@ -557,17 +543,8 @@ namespace egkr
 		vertShaderModule = createShaderModule(boardVertShaderCode);
 		fragShaderModule = createShaderModule(boardFragShaderCode);
 
-		vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
-		vertShaderStageInfo
-			.setStage(vk::ShaderStageFlagBits::eVertex)
-			.setModule(vertShaderModule)
-			.setPName("main");
-
-		vk::PipelineShaderStageCreateInfo fragShaderStageInfo{};
-		fragShaderStageInfo
-			.setStage(vk::ShaderStageFlagBits::eFragment)
-			.setModule(fragShaderModule)
-			.setPName("main");
+		auto vertShaderStageInfo = initialisers::pipeline::shaderCreate(vk::ShaderStageFlagBits::eVertex, "main", vertShaderModule);
+		auto fragShaderStageInfo = initialisers::pipeline::shaderCreate(vk::ShaderStageFlagBits::eFragment, "main", fragShaderModule);
 
 		auto shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
 
@@ -590,6 +567,8 @@ namespace egkr
 			.setVertexBindingDescriptions(bindingDescription)
 			.setVertexAttributeDescriptions(attributeDescription);
 
+		//auto vertexInputInfo = initialisers::pipeline::vertexInputCreate();
+
 		constexpr auto inputAssembly = initialisers::pipeline::inputAssemblyCreate(vk::PrimitiveTopology::eTriangleList, false);
 
 		auto viewportState = initialisers::pipeline::viewportCreate(0.f, 0.f, swapchainExtent, 0.f, 1.f, { 0, 0 });
@@ -597,12 +576,10 @@ namespace egkr
 		constexpr auto rasterizer = initialisers::pipeline::rasterizationCreate(false, false, vk::PolygonMode::eFill, 1.f, vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise, false, 0.f, 0.f, 0.f);
 		constexpr auto multisample = initialisers::pipeline::multisampleCreate(false, vk::SampleCountFlagBits::e1, 1.f, false, false);
 
-
 		constexpr auto colourMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
 		constexpr auto blendOne = vk::BlendFactor::eOne;
 		constexpr auto add = vk::BlendOp::eAdd;
 		constexpr auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, false, blendOne, blendOne, add, blendOne, vk::BlendFactor::eZero, add);;
-
 
 		constexpr auto attachments = { colourBlendAttachmentState };
 
@@ -640,7 +617,7 @@ namespace egkr
 		pipelines.board = pipelin[0];
 		ENGINE_ASSERT(pipelines.board != vk::Pipeline{}, "Failed to create graphics pipeline");
 
-		SpriteRenderer::create(pipelineInfo);
+		SpriteRenderer::create(pipelineInfo, swapchainExtent);
 
 	}
 
@@ -901,7 +878,7 @@ namespace egkr
 		}
 	}
 
-	egkr::Sprite egakeru::createSprite(const Texture2D& image)
+	std::shared_ptr<egkr::Sprite> egakeru::createSprite(const Texture2D& image)
 	{
 		return SpriteRenderer::createSprite({ 200, 200 }, image);
 	}
@@ -911,7 +888,7 @@ namespace egkr
 		boardPropertiesBuffer[currentImage].map(&boardProperties);
 	}
 
-	void egakeru::drawFrame(const BoardProperties& boardProperties, const Sprite& sprite)
+	void egakeru::drawFrame(const BoardProperties& boardProperties)
 	{
 		PROFILE_FUNCTION()
 		auto result = state.device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
@@ -982,7 +959,7 @@ namespace egkr
 
 		commandBuffer.drawIndexed(6, 1, 0, 0, 0);
 
-		SpriteRenderer::renderSprite(sprite, commandBuffer, currentFrame);
+		SpriteRenderer::render(commandBuffer, currentFrame);
 
 		commandBuffer.endRenderPass();
 			});

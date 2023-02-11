@@ -41,8 +41,7 @@ private:
 	bool dropped = false;
 	std::string _droppedPayload;
 
-
 	egkr::Texture2D image{};
-	egkr::Sprite chessSprite;
+	std::shared_ptr<egkr::Sprite> chessSprite;
 };
 

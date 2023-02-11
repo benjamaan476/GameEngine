@@ -111,12 +111,13 @@ void Application::mainLoop()
 			}
 
 			Gui::Window sprite(_gui.get(), "Sprite Editor");
-			sprite.var("Sprite Size", chessSprite.size, 0.f, 1000.f, 10.f);
-			sprite.var("Sprite Position", chessSprite.position, 0.f, 1000.f, 10.f);
+			sprite.var("Sprite Size", chessSprite->size, 0.f, 1000.f, 10.f);
+			sprite.var("Sprite Position", chessSprite->position, 0.f, 1000.f, 10.f);
+			sprite.var("Sprite Rotation", chessSprite->rotation, 0.f, 360.f, 1.f);
 			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		}
 
-		egkr::egakeru::drawFrame(boardProperties, chessSprite);
+		egkr::egakeru::drawFrame(boardProperties);
 	}
 
 	egkr::state.device.waitIdle();
@@ -130,7 +131,7 @@ void Application::destroyUi()
 void Application::cleanup()
 {
 	destroyUi();
-	chessSprite.destory();
+	chessSprite->destory();
 	image.destroy();
 	egkr::egakeru::cleanup();
 
