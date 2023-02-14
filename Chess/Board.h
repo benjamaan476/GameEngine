@@ -1,11 +1,21 @@
 #pragma once
 
 #include "../GameEngine/EngineCore.h"
-
+#include "Pieces/Piece.h"
 #include <iostream>
 
-class BoardRenderer;
-class AsciiRenderer;
+class Board;
+class BoardRenderer
+{
+public:
+	virtual void draw(const Board& board) = 0;
+}; 
+
+class AsciiBoardRenderer : public BoardRenderer
+{
+public:
+	void draw(const Board& board) override;
+};
 
 class Board
 {
@@ -13,25 +23,25 @@ public:
 	Board() = default;
 	explicit Board(uint2 size) noexcept : size{ size }
 	{
-		board.resize(size.x, std::vector<std::optional<Piece>>(size.y));
+		board.resize(size.x * size.y);
 
-		//renderer = std::make_unique<BoardRenderer>(new AsciiRenderer());
+		renderer = std::unique_ptr<BoardRenderer>(new AsciiBoardRenderer());
 	}
 
 	uint2 getSize() const noexcept { return size; }
 	std::optional<Piece> getPiece(uint2 location) const noexcept
 	{
-		if (location.x > board.size() || location.y > board[0].size())
+		if (location.x > size.x || location.y > size.y)
 		{
 			LOG_WARN("Attempted to index out of board size");
 			return {};
 		}
-		return board[location.x][location.y];
+		return board[location.y * size.x + location.x];
 	}
 
 	void setPiece(Piece piece, uint2 location) noexcept
 	{
-		if (location.x > board.size() || location.y > board[0].size())
+		if (location.x > size.x || location.y > size.y)
 		{
 			LOG_WARN("Attempted to index out of board size");
 			return;
@@ -42,47 +52,21 @@ public:
 		//	Event.Capture(capturedPiece);
 		//}
 
-		board[location.x][location.y] = piece;
+		board[location.y * size.x + location.x] = piece;
 	}
 
-	std::vector<std::vector<std::optional<Piece>>> getBoard() const noexcept { return board; }
+	std::vector<std::optional<Piece>> getBoard() const noexcept { return board; }
+
+	void draw()
+	{
+		renderer->draw(*this);
+	}
 private:
 
 	uint2 size{ 8, 8 };
 
-	std::vector<std::vector<std::optional<Piece>>> board{};
+	std::vector<std::optional<Piece>> board{};
 
-	//std::unique_ptr<BoardRenderer> renderer;
+	std::unique_ptr<BoardRenderer> renderer;
 };
 
-class BoardRenderer
-{
-	virtual void draw() = 0;
-};
-
-class AsciiBoardRenderer : public BoardRenderer
-{
-	Board board;
-	void draw() override
-	{
-		std::cout << "\n";
-		for (const auto& row : board.getBoard())
-		{
-			std::ostringstream ss;
-			for (const auto& piece : row)
-			{
-				ss << "|";
-				if (piece.has_value())
-				{
-					ss << "*";
-				}
-				else
-				{
-					ss << " ";
-				}
-			}
-
-			std::cout << ss.str() << "|\n";
-		}
-	}
-};
