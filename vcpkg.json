@@ -16,6 +16,7 @@
         "docking-experimental"
       ]
     },
-    "stb"
+    "stb",
+    "gtest"
   ]
 }

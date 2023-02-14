@@ -220,7 +220,6 @@ namespace egkr
 
 		for (const auto& sprite : sprites)
 		{
-
 			auto model = glm::mat4(1.f);
 			model = glm::translate(model, sprite->position);
 			model = glm::translate(model, glm::vec3(0.5 * sprite->size.x, 0.5 * sprite->size.y, 0.f));
@@ -228,31 +227,24 @@ namespace egkr
 			model = glm::translate(model, glm::vec3(-0.5f * sprite->size.x, -0.5f * sprite->size.y, 0.f));
 			model = glm::scale(model, glm::vec3(sprite->size, 1.f));
 			//model = glm::translate(model, glm::vec3(-0.5f * sprite.size.x, -0.5f * sprite.size.y, 0.0f));
-
-
 			{
 				Vertex vert{};
 				for (auto i = 0u; i < 4; i++)
 				{
 					vert = Sprite::vertices[i];
 					vert.pos = ortho * model * Sprite::vertices[i].pos;
+					vert.tex = Sprite::vertices[i].tex * glm::vec2(128.f / sprite->texture.getWidth(), 128.f / sprite->texture.getHeight());
 					staging.emplace_back(vert);
 				}
-
 			}
-
 		}
 
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, spritePipeline);
 
 		for (auto& sprite : sprites)
 		{
-
 			commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, sprite->descriptor[currentFrame], nullptr);
 		}
-
-
-
 
 		stagingBuffer.map(staging.data());
 		vertexBuffer.copy(stagingBuffer);
@@ -274,7 +266,7 @@ namespace egkr
 		}
 		state.device.destroyShaderModule(vertShaderModule);
 		state.device.destroyShaderModule(fragShaderModule);
-
+		state.device.destroyPipelineLayout(pipelineLayout);
 		state.device.destroyPipeline(spritePipeline);
 		state.device.destroyDescriptorSetLayout(_descriptorSetLayout);
 		state.device.destroyDescriptorPool(descriptorPool);
