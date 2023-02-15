@@ -9,7 +9,7 @@ void AsciiBoardRenderer::draw(const Board& board)
 	std::ostringstream ss;
 	for (const auto& piece : board.getBoard())
 	{
-		if (count == 8)
+		if (count == board.getSize().x)
 		{
 			ss << "|\n";
 			count = 0;

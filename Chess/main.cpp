@@ -7,18 +7,13 @@ int main()
 {
 	Log::Init();
 	LOG_INFO("Hello");
-	int i = 0;
-	
-	auto piece = Piece(PieceType::Bishop, Colour::White);
 
-	auto type = piece.getType();
+	auto bitboard4 = Bitboard<8, 8>();
 
-	Board board{ {8, 8} };
-
-	board.setPiece(piece, { 0, 0 });
-	board.draw();
-
-	auto bitboard4 = Bitboard<9,8>::fileMask(3);
+	bitboard4.fillFile(5);
+	bitboard4.fillFile(2);
+	bitboard4.fillRank(2);
+	bitboard4.fillRank(5);
 	bitboard4.draw();
 	return 0;
 }

@@ -32,19 +32,32 @@ public:
 		return { .words = board.words, .partialMask = board.partialMask };
 	}
 
-
-	static Bitboard fileMask(uint32_t file) noexcept
+	Bitboard fillFile(uint32_t file) noexcept
 	{
-		Bitboard<width, height> board;
-
-		auto wordWidth = std::min(width, 8u);
-		for (auto i = 0u; i < width * height; i += wordWidth)
+		if (file < width)
 		{
-			auto index = i + file;
-			board.words[index >> bitsPerWord] |= 1ull << (index & wordSizeMask);
+			for (auto i = 0u; i < width * height; i += width)
+			{
+				auto index = i + file;
+				words[index >> bitsPerWord] |= 1ull << (index & wordSizeMask);
+			}
 		}
+		return *this;
+	}
 
-		return board;
+	Bitboard fillRank(uint32_t rank) noexcept
+	{
+		if (rank < height)
+		{
+			auto start = rank * width;
+			auto end = start + width;
+
+			for (auto i = start; i < end; i++)
+			{
+				words[i >> bitsPerWord] |= 1ull << (i & wordSizeMask);
+			}
+		}
+		return *this;
 	}
 
 	void draw() const noexcept
@@ -74,16 +87,33 @@ public:
 		//	ss << "\n";
 		//}
 		uint32_t count = 0u;
-		for(auto index = 0u; index < size; index += wordWidth)
+		for(auto index = 0u; index < size; index += width)
 		{ 
 			auto word = words[index >> bitsPerWord];
 
 			auto shift = index;
 
-			auto byte = word & (0xFFull << shift);
+			auto max = ~0ull;
+
+			max >>= (wordSize - width);
+			auto byte = word & (max << shift);
 			byte >>= shift;
-			byte &= 0xff;
-			for (auto i = 0u; i < wordWidth; i++)
+
+			if (index < wordSize && (index + width) > wordSize)
+			{
+				auto nextWord = words[(index + width) >> bitsPerWord];
+				auto nextIndex = index + width - wordSize;
+
+				auto nextByte = nextWord & (0xFFull/* << nextIndex*/);
+				//nextByte >>= nextIndex;
+
+				auto space = wordSize - index;
+
+				byte |= (nextByte << space);
+			}
+
+			//byte &= 0xff;
+			for (auto i = 0u; i < width; i++)
 			{
 				ss << ((byte >> i) & 0x01);
 				count++;
