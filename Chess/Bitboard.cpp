@@ -5,7 +5,7 @@
 #include <iostream>
 
 
-Bitboard::Bitboard(uint32_t width, uint32_t height) noexcept : width{ width }, height{ height }
+constexpr Bitboard::Bitboard(uint32_t width, uint32_t height) noexcept : width{ width }, height{ height }
 {
 	words.resize(((width * height - 1) >> bitsPerWord) + 1);
 	size = width * height;
@@ -26,6 +26,20 @@ constexpr Bitboard::Bitboard(const Bitboard& board) noexcept
 	size = board.size;
 	partialMask = board.partialMask;
 	words = board.words;
+}
+
+void Bitboard::setSquare(uint32_t index) noexcept
+{
+	if (index >= size)
+	{
+		return;
+	}
+	words[index >> bitsPerWord] |= 1ull << (index & wordSizeMask);
+}
+
+void Bitboard::setSquare(uint32_t x, uint32_t y) noexcept
+{
+	setSquare(x * width + y);
 }
 
 Bitboard Bitboard::fillFile(uint32_t file) noexcept

@@ -1,12 +1,18 @@
 #pragma once
+#include "../GameEngine/EngineCore.h"
+
 #include <array>
 #include <vector>
 
 class Bitboard
 {
 public:
-	Bitboard(uint32_t width, uint32_t height) noexcept;
+	constexpr Bitboard(uint32_t width, uint32_t height) noexcept;
 	constexpr Bitboard(const Bitboard& board) noexcept;
+
+	void setSquare(uint32_t index) noexcept;
+	void setSquare(uint32_t x, uint32_t y) noexcept;
+
 
 	Bitboard fillFile(uint32_t file) noexcept;
 	Bitboard fillRank(uint32_t rank) noexcept;
@@ -22,6 +28,8 @@ public:
 
 	Bitboard operator~ ();
 	void draw() const noexcept;
+
+	uint2 getSize() const noexcept { return { width, height }; }
 
 private:
 

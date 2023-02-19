@@ -6,7 +6,7 @@ enable_testing()
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(runUnitTests tests.cpp)
+add_executable(runUnitTests tests.cpp "../Chess/Bitboard.cpp")
 
 target_link_libraries(runUnitTests ${GTEST_BOTH_LIBRARIES})
 add_test(runUnitTests runUnitTests)

@@ -2,7 +2,7 @@
 
 #include "../../GameEngine/EngineCore.h"
 
-#include "ChessCore.h"
+#include "../ChessCore.h"
 #include "Move.h"
 
 class Piece

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "../Chess/Pieces/Piece.h"
+#include "../Chess/MoveSet.h"
 
 TEST(Pieces, ctor)
 {
@@ -53,4 +54,15 @@ TEST(MoveSet, expandMovesNonZeroDistance)
 	const auto& expandedMoves = moves[0].expandMove(distance);
 
 	EXPECT_TRUE(expandedMoves.size() <= distance);
+}
+
+TEST(MovementSet, ctor)
+{
+	const uint2 size{ 8,8 };
+	const auto move = MoveType::Slide;
+	MovementSet<8, 8> moveSet(move);
+
+	EXPECT_EQ(moveSet.getSize(), size);
+	EXPECT_EQ(moveSet.getMoveType(), move);
+	EXPECT_EQ(moveSet.getMovement().size(), size.x * size.y);
 }
