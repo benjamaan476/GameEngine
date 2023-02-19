@@ -13,6 +13,8 @@ public:
 	void setSquare(uint32_t index) noexcept;
 	void setSquare(uint32_t x, uint32_t y) noexcept;
 
+	void unsetSquare(uint32_t index) noexcept;
+	void unsetSquare(uint32_t x, uint32_t y) noexcept;
 
 	Bitboard fillFile(uint32_t file) noexcept;
 	Bitboard fillRank(uint32_t rank) noexcept;

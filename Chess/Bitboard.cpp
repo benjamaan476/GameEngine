@@ -42,6 +42,20 @@ void Bitboard::setSquare(uint32_t x, uint32_t y) noexcept
 	setSquare(x * width + y);
 }
 
+void Bitboard::unsetSquare(uint32_t index) noexcept
+{
+	if (index >= size)
+	{
+		return;
+	}
+	words[index >> bitsPerWord] |= ~(1ull << (index & wordSizeMask));
+}
+
+void Bitboard::unsetSquare(uint32_t x, uint32_t y) noexcept
+{
+	unsetSquare(x * width + y);
+}
+
 Bitboard Bitboard::fillFile(uint32_t file) noexcept
 {
 	if (file < width)
