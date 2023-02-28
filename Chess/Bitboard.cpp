@@ -28,6 +28,13 @@ constexpr Bitboard::Bitboard(const Bitboard& board) noexcept
 	words = board.words;
 }
 
+Bitboard::Bitboard(uint32_t width, uint32_t height, std::vector<uint64_t> word) noexcept
+	: Bitboard{width, height}
+{
+	words = word;
+	words.back() &= partialMask;
+}
+
 void Bitboard::setSquare(uint32_t index) noexcept
 {
 	if (index >= size)
@@ -54,6 +61,15 @@ void Bitboard::unsetSquare(uint32_t index) noexcept
 void Bitboard::unsetSquare(uint32_t x, uint32_t y) noexcept
 {
 	unsetSquare(x * width + y);
+}
+
+void Bitboard::toggleSquare(uint32_t index) noexcept
+{
+	if (index >= size)
+	{
+		return;
+	}
+	words[index >> bitsPerWord] ^= 1ull << (index & wordSizeMask);
 }
 
 Bitboard Bitboard::fillFile(uint32_t file) noexcept

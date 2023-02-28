@@ -19,27 +19,31 @@ class MovementSet
 public:
 	constexpr static MovementSet generateMovementSet(PieceType type, Colour colour)
 	{
-		std::vector<int32_t> moveDescription;
+		std::vector<int2> moveDescription;
 		switch (type)
 		{
 		case PieceType::Pawn:
 		{
 			if (colour == Colour::White)
 			{
-				moveDescription = whitePawnMoveDesription;
+				moveDescription = whitePawnMoveDescription;
 			}
 			else
 			{
-				moveDescription = blackPawnMoveDesription;
+				moveDescription = blackPawnMoveDescription;
 			}
 			return generateMovementSet(MoveType::Leap, moveDescription, ahBlankingFile);
 		}
 		case PieceType::Knight:
-		{
 			return generateMovementSet(MoveType::Leap, knightMoveDescription, abghBlankingFile);
-		}
 		case PieceType::King:
-			return generateMovementSet(MoveType::Leap, kingMoveDesription, ahBlankingFile);
+			return generateMovementSet(MoveType::Leap, kingMoveDescription, ahBlankingFile);
+		case PieceType::Bishop:
+			return generateMovementSet(MoveType::Slide, bishopMoveDescription, ahBlankingFile);
+		case PieceType::Rook:
+			return generateMovementSet(MoveType::Slide, rookMoveDescription, ahBlankingFile);
+		case PieceType::Queen:
+			return generateMovementSet(MoveType::Slide, queenMoveDescription, ahBlankingFile);
 		case PieceType::None:
 			ENGINE_ASSERT(false, "Invalid piece given");
 		default:
@@ -47,32 +51,54 @@ public:
 		}
 	}
 
-	static MovementSet generateMovementSet(MoveType moveType, std::vector<int32_t> moveDescritpion, std::vector<int32_t> blankingFile)
+	static MovementSet generateMovementSet(MoveType moveType, const std::vector<int2>& moveDescritpion, const std::vector<uint32_t>& blankingFile)
 	{
 		MovementSet set{ moveType };
-		for (auto i = 0; i < width * height; i++)
+		if (moveType == MoveType::Leap)
 		{
-			Bitboard bitboard{ (uint32_t)width, (uint32_t)height };
-			for (const auto& move : moveDescritpion)
+			for (auto i = 0; i < width * height; i++)
 			{
-				bitboard.setSquare(i + move);
-			}
+				Bitboard bitboard{ (uint32_t)width, (uint32_t)height };
+				for (const auto& move : moveDescritpion)
+				{
+					bitboard.setSquare(i + move.y * width + move.x);
+				}
 
-			if (i % width == 0 || i % width == 1)
-			{
-				Bitboard h{ (uint32_t)width, (uint32_t)height };
-				h.fillFile(width - 1);
-				h.fillFile(width - 2);
-				bitboard &= ~h;
+				if (i % width == 0 || i % width == 1)
+				{
+					Bitboard h{ (uint32_t)width, (uint32_t)height };
+					h.fillFile(width - 1);
+					h.fillFile(width - 2);
+					bitboard &= ~h;
+				}
+				else if (i % width == width - 1 || i % width == width - 2)
+				{
+					Bitboard a{ (uint32_t)width, (uint32_t)height };
+					a.fillFile(0);
+					a.fillFile(1);
+					bitboard &= ~a;
+				}
+				set.setSquare(i, bitboard);
 			}
-			else if (i % width == width - 1 || i % width == width - 2)
+		}
+		else if (moveType == MoveType::Slide)
+		{
+			for (int i = 0; i < width * height; i++)
 			{
-				Bitboard a{ (uint32_t)width, (uint32_t)height };
-				a.fillFile(0);
-				a.fillFile(1);
-				bitboard &= ~a;
+				auto file = i % width;
+				auto rank = i / height;
+		
+				Bitboard bitboard{ (uint32_t)width, (uint32_t)height };
+				for (const auto& move : moveDescritpion)
+				{
+					for (auto r = rank + move.y, f = file + move.x; (r > 0 && r < height - 1) && (f > 0 && f < width - 1); r += move.y, f += move.x)
+					{
+						bitboard.setSquare(r * width + f);
+					}
+
+					set.setSquare(i, bitboard);
+				}
 			}
-			set.setSquare(i, bitboard);
 		}
 		return set;
 	}
@@ -100,12 +126,15 @@ private:
 	MoveType movementType{};
 	std::vector<Bitboard> movement{};
 
-	static inline std::vector<int32_t> knightMoveDescription = { -2 * width - 1, -2 * width + 1, -width - 2, -width + 2, width - 2, width + 2, 2 * width - 1, 2 * width + 1 };
-	static inline std::vector<int32_t> whitePawnMoveDesription = { -width - 1, -width + 1 };
-	static inline std::vector<int32_t> blackPawnMoveDesription = { width - 1, width + 1 };
-	static inline std::vector<int32_t> kingMoveDesription = { -width -1, -width, -width + 1, -1, 1, width - 1, width, width + 1 };
+	static inline std::vector<int2> knightMoveDescription = { {-1, -2}, {1, -2}, {-2, -1}, {2, -1}, {-2, 1}, {2, 1}, {-1, 2}, {1, 2} };
+	static inline std::vector<int2> whitePawnMoveDescription = { {-1, -1}, {1, -1} };
+	static inline std::vector<int2> blackPawnMoveDescription = { {-1, 1}, {1, 1} };
+	static inline std::vector<int2> kingMoveDescription = { {-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1} };
+	static inline std::vector<int2> bishopMoveDescription = { {-1, -1}, {1, -1}, {-1, 1}, {1, 1} };
+	static inline std::vector<int2> rookMoveDescription = { {-1, 0}, {1, 0}, {0, 1}, {0, -1} };
+	static inline std::vector<int2> queenMoveDescription = { {-1, 0}, {-1, -1}, {1, -1}, {1, 1}, {-1, 1}, {1, 0}, {0, 1}, {0, -1} };
 
-	static inline std::vector<int32_t> ahBlankingFile = { 0, width - 1 };
-	static inline std::vector<int32_t> abghBlankingFile = { 0, 1, width - 2, width - 1 };
+	static inline std::vector<uint32_t> ahBlankingFile = { 0, width - 1 };
+	static inline std::vector<uint32_t> abghBlankingFile = { 0, 1, width - 2, width - 1 };
 
 };

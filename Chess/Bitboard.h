@@ -9,12 +9,15 @@ class Bitboard
 public:
 	constexpr Bitboard(uint32_t width, uint32_t height) noexcept;
 	constexpr Bitboard(const Bitboard& board) noexcept;
+	Bitboard(uint32_t width, uint32_t height, std::vector<uint64_t> words) noexcept;
 
 	void setSquare(uint32_t index) noexcept;
 	void setSquare(uint32_t x, uint32_t y) noexcept;
 
 	void unsetSquare(uint32_t index) noexcept;
 	void unsetSquare(uint32_t x, uint32_t y) noexcept;
+
+	void toggleSquare(uint32_t index) noexcept;
 
 	Bitboard fillFile(uint32_t file) noexcept;
 	Bitboard fillRank(uint32_t rank) noexcept;
