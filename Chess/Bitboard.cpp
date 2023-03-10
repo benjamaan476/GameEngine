@@ -55,7 +55,7 @@ void Bitboard::unsetSquare(uint32_t index) noexcept
 	{
 		return;
 	}
-	words[index >> bitsPerWord] |= ~(1ull << (index & wordSizeMask));
+	words[index >> bitsPerWord] &= ~(1ull << (index & wordSizeMask));
 }
 
 void Bitboard::unsetSquare(uint32_t x, uint32_t y) noexcept
@@ -70,6 +70,16 @@ void Bitboard::toggleSquare(uint32_t index) noexcept
 		return;
 	}
 	words[index >> bitsPerWord] ^= 1ull << (index & wordSizeMask);
+}
+
+constexpr int Bitboard::bitCount() const noexcept
+{
+	auto count = 0;
+	for (const auto& word : words)
+	{
+		count += std::popcount(word);
+	}
+	return count;
 }
 
 Bitboard Bitboard::fillFile(uint32_t file) noexcept
@@ -157,6 +167,46 @@ Bitboard Bitboard::operator^=(const Bitboard& board) noexcept
 	words.back() &= partialMask;
 
 	return *this;
+}
+
+Bitboard Bitboard::ls1b() const noexcept
+{
+	uint64_t ls1b{};
+	int count = 0;
+	for (const auto& word : words)
+	{
+		if (word == 0)
+		{
+			count++;
+			continue;
+		}
+
+		ls1b = word & (0 - word);
+		break;
+	}
+
+	Bitboard board{ width, height };
+
+	board.words[count] = ls1b;
+
+	return board;
+}
+
+int Bitboard::ls1bIndex() const noexcept
+{
+	auto board = ls1b();
+
+	for (auto& word : board.words)
+	{
+		if (word != 0)
+		{
+			word -= 1;
+			break;
+		}
+		word -= 1;
+	}
+
+	return board.bitCount();
 }
 
 Bitboard Bitboard::operator~()

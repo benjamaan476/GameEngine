@@ -18,12 +18,23 @@ int main()
 	//auto set = MovementSet<16, 16>::generateMovementSet(PieceType::Knight, Colour::Black);
 	//auto moveDescription = { -2 * width, -width, -2, -1, 1, 2, width, 2 * width };
 
-	auto customSet = MovementSet<width, height>::generateMovementSet(PieceType::Rook, Colour::White);
-	customSet.getMovement()[61].draw();
+	Bitboard board{ width, height };
+	board.fillFile(5);
+	board.fillFile(6);
+	board.fillRank(0);
 
+
+	auto customSet = MovementSet<width, height>::generateMovementSet(PieceType::Rook, Colour::White);
+	auto rook = customSet.getMovement()[54];
+	rook.draw();
+	//for (auto i = 0; i < 100; i++)
+	//{
+	//	auto occupancy = MovementSet<width, height>::setOccupancies(i, rook);
+	//	occupancy.draw();
+	//}
 	MagicNumberGenerator mng{};
 
 	auto b = mng.generateRandomBitboard(width, height);
-	b.draw();
+	//b.draw();
 	return 0;
 }

@@ -51,7 +51,7 @@ public:
 		}
 	}
 
-	static MovementSet generateMovementSet(MoveType moveType, const std::vector<int2>& moveDescritpion, const std::vector<uint32_t>& blankingFile)
+	static MovementSet generateMovementSet(MoveType moveType, const std::vector<int2>& moveDescription, const std::vector<uint32_t>& blankingFile)
 	{
 		MovementSet set{ moveType };
 		if (moveType == MoveType::Leap)
@@ -59,7 +59,7 @@ public:
 			for (auto i = 0; i < width * height; i++)
 			{
 				Bitboard bitboard{ (uint32_t)width, (uint32_t)height };
-				for (const auto& move : moveDescritpion)
+				for (const auto& move : moveDescription)
 				{
 					bitboard.setSquare(i + move.y * width + move.x);
 				}
@@ -83,24 +83,71 @@ public:
 		}
 		else if (moveType == MoveType::Slide)
 		{
-			for (int i = 0; i < width * height; i++)
-			{
-				auto file = i % width;
-				auto rank = i / height;
-		
-				Bitboard bitboard{ (uint32_t)width, (uint32_t)height };
-				for (const auto& move : moveDescritpion)
-				{
-					for (auto r = rank + move.y, f = file + move.x; (r > 0 && r < height - 1) && (f > 0 && f < width - 1); r += move.y, f += move.x)
-					{
-						bitboard.setSquare(r * width + f);
-					}
-
-					set.setSquare(i, bitboard);
-				}
-			}
+			calculateSlidingAttack(set, moveDescription);
 		}
 		return set;
+	}
+
+	static void calculateSlidingAttack(MovementSet& set, const std::vector<int2>& moveDescription)
+	{
+		for (int i = 0; i < width * height; i++)
+		{
+			const auto file = i % width;
+			const auto rank = i / height;
+
+			Bitboard bitboard{ (uint32_t)width, (uint32_t)height };
+			for (const auto& move : moveDescription)
+			{
+				for (auto r = rank + move.y, f = file + move.x; (r >= 0 && r < height) && (f >= 0 && f < width); r += move.y, f += move.x)
+				{
+					bitboard.setSquare(r * width + f);
+				}
+
+				set.setSquare(i, bitboard);
+			}
+		}
+
+	}
+
+	//static Bitboard calculateMovementSetOnTheFly(int square, const Bitboard& blockingBoard)
+	//{
+	//	for (int i = 0; i < width * height; i++)
+	//	{
+	//		const auto file = i % width;
+	//		const auto rank = i / height;
+
+	//		Bitboard bitboard{ (uint32_t)width, (uint32_t)height };
+	//		for (const auto& move : moveDescritpion)
+	//		{
+	//			for (auto r = rank + move.y, f = file + move.x; (r >= 0 && r < height) && (f >= 0 && f < width); r += move.y, f += move.x)
+	//			{
+	//				bitboard.setSquare(r * width + f);
+	//			}
+
+	//			set.setSquare(i, bitboard);
+	//		}
+	//	}
+
+	//}
+
+	static Bitboard setOccupancies(int index, Bitboard attackBoard)
+	{
+		Bitboard board{ width, height };
+		auto bitCount = attackBoard.bitCount();
+
+		for (auto count = 0; count < bitCount; count++)
+		{
+			//TODO attackBoard &= ~attackBoard.ls1b
+			auto square = attackBoard.ls1bIndex();
+			attackBoard.unsetSquare(square);
+
+			if (index & (1ull << count))
+			{
+				board.setSquare(square);
+			}
+		}
+
+		return board;
 	}
 
 	MovementSet(MoveType movementType) noexcept : size{ width, height }, movementType{ movementType }

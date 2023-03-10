@@ -19,6 +19,9 @@ public:
 
 	void toggleSquare(uint32_t index) noexcept;
 
+	constexpr int bitCount() const noexcept;
+
+
 	Bitboard fillFile(uint32_t file) noexcept;
 	Bitboard fillRank(uint32_t rank) noexcept;
 
@@ -30,6 +33,10 @@ public:
 
 	friend Bitboard operator^ (Bitboard lhs, const Bitboard& rhs) noexcept;
 	Bitboard operator^= (const Bitboard& board) noexcept;
+
+	Bitboard ls1b() const noexcept;
+	int ls1bIndex() const noexcept;
+
 
 	Bitboard operator~ ();
 	void draw() const noexcept;
