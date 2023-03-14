@@ -1,40 +1,37 @@
 #include "../GameEngine/Log/Log.h"
+#include "../GameEngine/EngineCore.h"
 
-#include "Pieces/Piece.h"
-#include "Board.h"
-#include "Bitboard.h"
-#include "MoveSet.h"
-
-#include "MagicNumberGenerator.h"
+import Board;
+import BoardRenderer;
+import Bitboard;
+import MovementSet;
+import MagicNumberGenerator;
 
 int main()
 {
 	Log::Init();
 	LOG_INFO("Hello");
 
-	constinit static const int width = 16;
-	constinit static const int height = 16;
-	//uint2 size{ 8, 8 };
-	//auto set = MovementSet<16, 16>::generateMovementSet(PieceType::Knight, Colour::Black);
-	//auto moveDescription = { -2 * width, -width, -2, -1, 1, 2, width, 2 * width };
+	constinit static const int width = 8;
+	constinit static const int height = 8;
 
-	Bitboard board{ width, height };
-	board.fillFile(5);
-	board.fillFile(6);
-	board.fillRank(0);
+	const int2 size{ width, height };
+	auto renderer = std::make_unique<FENRenderer>();
 
+	Board board2(size, std::move(renderer));
+	board2.draw();
 
-	auto customSet = MovementSet<width, height>::generateMovementSet(PieceType::Rook, Colour::White);
-	auto rook = customSet.getMovement()[54];
+	auto customSet = MovementSet::generateMovementSet({ width, height }, PieceType::Queen, Colour::Black);
+	auto rook = customSet.getMovement()[29];
 	rook.draw();
 	//for (auto i = 0; i < 100; i++)
 	//{
-	//	auto occupancy = MovementSet<width, height>::setOccupancies(i, rook);
+	//	auto occupancy = MovementSet::setOccupancies({ width, height }, i, rook);
 	//	occupancy.draw();
 	//}
-	MagicNumberGenerator mng{};
+	//MagicNumberGenerator mng{};
 
-	auto b = mng.generateRandomBitboard(width, height);
+	//auto b = mng.generateRandomBitboard(width, height);
 	//b.draw();
 	return 0;
 }
