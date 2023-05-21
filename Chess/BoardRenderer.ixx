@@ -10,7 +10,7 @@ export class AsciiBoardRenderer : public BoardRenderer
 public:
 	void draw(const Board& board) const override
 	{
-		std::cout << "Z" << std::endl;
+//		std::cout << "Z" << std::endl;
 	}
 };
 

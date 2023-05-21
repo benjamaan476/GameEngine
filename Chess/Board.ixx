@@ -1,7 +1,10 @@
 module;
 
 #include "../GameEngine/EngineCore.h"
+#include "ChessCore.h"
 
+#include <functional>
+#include <numeric>
 
 export module Board;
 import Bitboard;
@@ -12,7 +15,6 @@ export class BoardRenderer
 public:
 	virtual void draw(const Board& board) const = 0;
 };
-
 
 export class Board
 {
@@ -33,12 +35,13 @@ public:
 		blackKing{ size },
 		blackQueens{ size }
 	{
-		whitePieces.push_back(&whitePawns);
-		whitePieces.push_back(&whiteRooks);
-		whitePieces.push_back(&whiteKnights);
-		whitePieces.push_back(&whiteBishops);
-		whitePieces.push_back(&whiteQueens);
-		whitePieces.push_back(&whiteKing);
+		whitePawns.fillFile(size.y - 1);
+		whitePieces.push_back(whitePawns);
+		whitePieces.push_back(whiteRooks);
+		whitePieces.push_back(whiteKnights);
+		whitePieces.push_back(whiteBishops);
+		whitePieces.push_back(whiteQueens);
+		whitePieces.push_back(whiteKing);
 	}
 
 	void draw() const
@@ -48,6 +51,7 @@ public:
 
 	Bitboard getWhitePieces() const noexcept
 	{
+		auto answer = std::accumulate(whitePieces.begin(), whitePieces.end(), whitePawns, std::bit_or<Bitboard>());
 		return whitePawns | whiteRooks | whiteKnights | whiteBishops | whiteQueens | whiteKing;
 	}
 
@@ -59,6 +63,11 @@ public:
 	Bitboard getPieces() const noexcept
 	{
 		return getWhitePieces() | getBlackPieces();
+	}
+
+	void set_next_player(Colour player) noexcept
+	{
+		_nextPlayer = player;
 	}
 
 private:
@@ -78,7 +87,8 @@ private:
 	Bitboard blackKing;
 	Bitboard blackQueens;
 
-	std::vector<Bitboard*> whitePieces;
+	std::vector<Bitboard> whitePieces;
 
+	Colour _nextPlayer;
 };
 

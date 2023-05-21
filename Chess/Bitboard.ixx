@@ -271,7 +271,7 @@ public:
 				}
 			}
 		}
-		std::cout << ss.str() << std::endl;
+//		std::cout << ss.str() << std::endl;
 	}
 
 	constexpr uint2 getSize() const noexcept { return size; }

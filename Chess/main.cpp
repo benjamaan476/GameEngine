@@ -6,6 +6,7 @@ import BoardRenderer;
 import Bitboard;
 import MovementSet;
 import MagicNumberGenerator;
+import FENParser;
 
 int main()
 {
@@ -16,10 +17,11 @@ int main()
 	constinit static const int height = 8;
 
 	const int2 size{ width, height };
-	auto renderer = std::make_unique<FENRenderer>();
+	auto renderer = std::make_unique<AsciiBoardRenderer>();
 
 	Board board2(size, std::move(renderer));
 	board2.draw();
+	auto white = board2.getWhitePieces();
 
 	auto customSet = MovementSet::generateMovementSet({ width, height }, PieceType::Queen, Colour::Black);
 	auto rook = customSet.getMovement()[29];
@@ -33,5 +35,9 @@ int main()
 
 	//auto b = mng.generateRandomBitboard(width, height);
 	//b.draw();
+
+	FENParser parse{};
+
+	parse.parse_starting_position();
 	return 0;
 }
