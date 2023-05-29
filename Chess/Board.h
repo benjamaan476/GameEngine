@@ -14,37 +14,37 @@ public:
 	virtual void draw(const Board& board) const = 0;
 };
 
+class BoardBuilder;
 class Board
 {
+	friend class BoardBuilder;
 public:
-	Board(const int2& size, std::unique_ptr<BoardRenderer>&& renderer) noexcept;
+	Board(const uint2& size, std::unique_ptr<BoardRenderer>&& renderer) noexcept;
 
+	void set_renderer(std::unique_ptr<BoardRenderer>&& renderer) noexcept;
+	uint2 get_size() const noexcept { return _size; }
 	void draw() const noexcept;
 
 	Bitboard get_pieces() const noexcept;
 	Bitboard get_white_pieces() const noexcept;
 	Bitboard get_black_pieces() const noexcept;
 
+	const Bitboard& get_piece(Piece piece) const noexcept;
+	
+	
+	const Bitboard& get_black_pawns() const noexcept;
+	
+	
 	void set_next_player(Colour player) noexcept;
 
 private:
-	int2 _size{};
+	void register_base_pieces();
+
+private:
+	uint2 _size{};
 	std::unique_ptr<BoardRenderer> _renderer;
 
-	Bitboard _whitePawns;
-	Bitboard _whiteRooks;
-	Bitboard _whiteKnights;
-	Bitboard _whiteBishops;
-	Bitboard _whiteKing;
-	Bitboard _whiteQueens;
-	Bitboard _blackPawns;
-	Bitboard _blackRooks;
-	Bitboard _blackKnights;
-	Bitboard _blackBishops;
-	Bitboard _blackKing;
-	Bitboard _blackQueens;
-
-	std::vector<Bitboard> _whitePieces;
+	std::unordered_map<Colour, std::unordered_map<PieceType, Bitboard>> _pieces{};
 
 	Colour _nextPlayer;
 };

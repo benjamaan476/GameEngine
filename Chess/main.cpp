@@ -19,9 +19,6 @@ int main()
 	const int2 size{ width, height };
 	auto renderer = std::make_unique<AsciiBoardRenderer>();
 
-	Board board2(size, std::move(renderer));
-	board2.draw();
-	auto white = board2.get_white_pieces();
 
 	auto customSet = MovementSet::generate_movement_set({ width, height }, PieceType::Queen, Colour::Black);
 	auto rook = customSet.get_movement()[29];
@@ -36,8 +33,9 @@ int main()
 	//auto b = mng.generateRandomBitboard(width, height);
 	//b.draw();
 
-	FENParser parse{};
+	auto boar = FENParser::parse_starting_position();
+	boar.set_renderer(std::move(renderer));
+	boar.draw();
 
-	parse.parse_starting_position();
 	return 0;
 }

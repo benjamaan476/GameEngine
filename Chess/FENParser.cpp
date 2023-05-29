@@ -31,14 +31,14 @@ Board FENParser::parse(std::string_view fenString)
 
 Board FENParser::parse_starting_position()
 {
-	return parse(_startingPosition);
+	FENParser parser{};
+	return parser.parse(_startingPosition);
 }
 
 BoardBuilder FENParser::parse_board(std::string_view boardField)
 {
 	BoardBuilder builder{};
 	auto rank{ 0 };
-	auto file{ 0 };
 	size_t newIndex{ 1 };
 	std::string_view rankString;
 	size_t index{ 0 };
@@ -52,17 +52,16 @@ BoardBuilder FENParser::parse_board(std::string_view boardField)
 		{
 			if (std::isdigit(c))
 			{
-				file += c - '0';
+				auto blank = c - '0';
+				builder.set_blank(rank, blank);
 			}
 			else
 			{
-				builder.set_piece({ rank, file }, c);
-				++file;
+				builder.set_piece(rank, c);
 			}
 		}
 		index += newIndex;
 		++rank;
-		file = 0;
 	}
 	return builder;
 }
@@ -76,7 +75,8 @@ void FENParser::parse_player(BoardBuilder& board, std::string_view playerString)
 
 void FENParser::parse_castling(BoardBuilder& builder, std::string_view castlingString)
 {
-
+	ENGINE_ASSERT(!castlingString.empty(), "Invalid castling string")
+	builder.set_castling(castlingString);
 }
 
 void FENParser::parse_enpassant(BoardBuilder& builder, std::string_view enpassantString)
@@ -89,12 +89,14 @@ void FENParser::parse_enpassant(BoardBuilder& builder, std::string_view enpassan
 
 void FENParser::parse_halfmove(BoardBuilder& builder, std::string_view halfmoveString)
 {
-	assert(halfmoveString.length() == 1);
+	assert(!halfmoveString.empty());
 	builder.set_halfmove(halfmoveString);
 }
 
 void FENParser::parse_fullmove(BoardBuilder& builder, std::string_view fullmoveString)
 {
+	assert(!fullmoveString.empty());
+	builder.set_fullmove(fullmoveString);
 }
 
 auto FENParser::next_field(std::string_view fields, char delimiter, size_t index) -> std::pair<size_t, std::string_view>

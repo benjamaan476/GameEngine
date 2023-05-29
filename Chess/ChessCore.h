@@ -17,3 +17,9 @@ enum class PieceType
 	Queen,
 	King
 };
+
+struct Piece
+{
+	PieceType type;
+	Colour colour;
+};

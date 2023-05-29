@@ -8,6 +8,8 @@
 
 #include <string_view>
 
+const static std::string _startingPosition = "rnbqkbnr/pppppp1p/6p1/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 class FENParser
 {
 public:
@@ -15,7 +17,7 @@ public:
 
 	Board parse(std::string_view fenString);
 
-	Board parse_starting_position();
+	static Board parse_starting_position();
 
 private:
 	BoardBuilder parse_board(std::string_view boardField);
@@ -34,5 +36,4 @@ private:
 	static constexpr char _fieldDelimiter = ' ';
 	static constexpr char _rankDelimiter = '/';
 
-	std::string _startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 };

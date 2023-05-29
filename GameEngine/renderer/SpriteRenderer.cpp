@@ -84,7 +84,6 @@ namespace egkr
 		//	.setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
 		//	.setAlphaBlendOp(vk::BlendOp::eAdd);
 		constexpr auto colourMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
-		constexpr auto blendOne = vk::BlendFactor::eOne;
 		constexpr auto add = vk::BlendOp::eAdd;
 		constexpr auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, true, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, add, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, add);
 

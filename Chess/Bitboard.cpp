@@ -28,6 +28,16 @@ constexpr Bitboard::Bitboard(uint2 size, std::vector<uint64_t> word) noexcept
 	_words.back() &= _partialMask;
 }
 
+bool Bitboard::is_set(uint32_t index) const noexcept
+{
+	return _words[index >> bitsPerWord] & 1ull << (index & wordSizeMask);
+}
+
+bool Bitboard::is_set(uint32_t x, uint32_t y) const noexcept
+{
+	return is_set(x + _size.x * y);
+}
+
 void Bitboard::set_square(uint32_t index) noexcept
 {
 	if (index >= _flatSize)
@@ -39,12 +49,12 @@ void Bitboard::set_square(uint32_t index) noexcept
 
 void Bitboard::set_square(uint2 square) noexcept
 {
-	set_square(square.x * _size.x + square.y);
+	set_square(square.y * _size.x + square.x);
 }
 
 void Bitboard::set_square(uint32_t x, uint32_t y) noexcept
 {
-	set_square(x * _size.x + y);
+	set_square(y * _size.x + x);
 }
 
 void Bitboard::unset_square(uint32_t index) noexcept
@@ -58,7 +68,7 @@ void Bitboard::unset_square(uint32_t index) noexcept
 
 void Bitboard::unset_square(uint2 square) noexcept
 {
-	unset_square(square.x * _size.x + square.y);
+	unset_square(square.y * _size.x + square.x);
 }
 
 void Bitboard::unset_square(uint32_t x, uint32_t y) noexcept
@@ -248,7 +258,7 @@ void Bitboard::draw() const noexcept
 			}
 		}
 	}
-	//		std::cout << ss.str() << std::endl;
+	std::cout << ss.str() << std::endl;
 }
 
 Bitboard operator&(Bitboard lhs, const Bitboard& rhs) noexcept

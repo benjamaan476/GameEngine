@@ -95,7 +95,7 @@ WindowsWindow::WindowsWindow(const WindowProperties& properties, std::function<v
 	glfwSetWindowUserPointer(window, &data);
 
 	glfwSetDropCallback(window, 
-		[](GLFWwindow* window, int pathCount, const char** paths)
+		[](GLFWwindow* /*window*/, int pathCount, const char** paths)
 		{
 			dragDropCallback(pathCount, paths);
 		});

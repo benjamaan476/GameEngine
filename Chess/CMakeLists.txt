@@ -1,7 +1,7 @@
 # CMakeList.txt : CMake project for Chess, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.12)
+cmake_minimum_required (VERSION 3.16)
 
 find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
@@ -20,7 +20,7 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 target_compile_options(Chess PRIVATE
-  $<$<CXX_COMPILER_ID:MSVC>:/W3 /WX>
+  $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Werror>
 )
 

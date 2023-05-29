@@ -14,6 +14,9 @@ public:
 
 	~Bitboard() = default;
 
+	bool is_set(uint32_t index) const noexcept;
+	bool is_set(uint32_t x, uint32_t y) const noexcept;
+
 	void set_square(uint32_t index) noexcept;
 	void set_square(uint2 square) noexcept;
 	void set_square(uint32_t x, uint32_t y) noexcept;
