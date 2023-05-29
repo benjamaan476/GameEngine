@@ -1,12 +1,12 @@
 #include "../GameEngine/Log/Log.h"
 #include "../GameEngine/EngineCore.h"
 
-import Board;
-import BoardRenderer;
-import Bitboard;
-import MovementSet;
-import MagicNumberGenerator;
-import FENParser;
+#include "Board.h"
+#include "BoardRenderer.h"
+#include "Bitboard.h"
+#include "MovementSet.h"
+#include "MagicNumberGenerator.h"
+#include "FENParser.h"
 
 int main()
 {
@@ -21,10 +21,10 @@ int main()
 
 	Board board2(size, std::move(renderer));
 	board2.draw();
-	auto white = board2.getWhitePieces();
+	auto white = board2.get_white_pieces();
 
-	auto customSet = MovementSet::generateMovementSet({ width, height }, PieceType::Queen, Colour::Black);
-	auto rook = customSet.getMovement()[29];
+	auto customSet = MovementSet::generate_movement_set({ width, height }, PieceType::Queen, Colour::Black);
+	auto rook = customSet.get_movement()[29];
 	rook.draw();
 	//for (auto i = 0; i < 100; i++)
 	//{

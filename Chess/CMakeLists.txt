@@ -13,7 +13,7 @@ include_directories(${GLFW_INCLUDE_DIRS})
 add_compile_definitions(_PROJECT_DIR_="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add source to this project's executable.
-add_executable (Chess "main.cpp" "../GameEngine/Log/Log.cpp" "ChessCore.h" "Board.ixx" "Bitboard.ixx" "MovementSet.ixx" "MagicNumberGenerator.ixx" "BoardRenderer.ixx" "FENParser.ixx" "BoardBuilder.ixx")
+add_executable (Chess "main.cpp" "../GameEngine/Log/Log.cpp" "Bitboard.cpp" "MovementSet.cpp" "MagicNumberGenerator.cpp" "Board.cpp" "BoardBuilder.cpp" "FENParser.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Chess PROPERTY CXX_STANDARD 20)
