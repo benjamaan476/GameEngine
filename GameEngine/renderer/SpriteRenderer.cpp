@@ -85,10 +85,10 @@ namespace egkr
 		//	.setAlphaBlendOp(vk::BlendOp::eAdd);
 		constexpr auto colourMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
 		constexpr auto add = vk::BlendOp::eAdd;
-		constexpr auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, true, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, add, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, add);
+		auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, true, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, add, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, add);
 
-		constexpr auto colourBlendAttachments = { colourBlendAttachmentState };
-		constexpr auto colourBlendCreate = egkr::initialisers::pipeline::colourBlendStateCreate(colourBlendAttachments, false, vk::LogicOp::eCopy, { 1.f, 1.f, 1.f, 1.f });
+		auto colourBlendAttachments = { colourBlendAttachmentState };
+		auto colourBlendCreate = egkr::initialisers::pipeline::colourBlendStateCreate(colourBlendAttachments, false, vk::LogicOp::eCopy, { 1.f, 1.f, 1.f, 1.f });
 
 		auto dynamicStates =
 		{

@@ -21,11 +21,9 @@ namespace egkr
 		createTextureSampler();
 		createSwapchain();
 		createRenderPass();
-		createDescriptorSetLayout();
 		createCommandPool();
 		createUniformBuffers();
-		createDescriptorPool();
-		createDescriptorSets();
+		setup_descriptors();
 		createDepthResources();
 		createFramebuffers();
 		createVertexBuffer();
@@ -367,7 +365,7 @@ namespace egkr
 		}
 
 		state.device = state.physicalDevice.createDevice(deviceCreateInfo/*, state.allocator*/);
-
+		
 		ENGINE_ASSERT(state.device != vk::Device{}, "Failed to create logical device");
 
 		state.graphicsQueue = state.device.getQueue(queueIndices.graphicsFamily.value(), 0);
@@ -513,31 +511,86 @@ namespace egkr
 		ENGINE_ASSERT(renderPass != vk::RenderPass{}, "Failed to create render pass");
 	}
 
-	void egakeru::createDescriptorSetLayout()
+	void egakeru::setup_descriptors()
 	{
-		PROFILE_FUNCTION()
+		DESCRIPTOR_POOL(uniform, vk::DescriptorType::eUniformBuffer);
+		//DESCRIPTOR_POOL(combinedSample, vk::DescriptorType::eCombinedImageSampler);
+		//DESCRIPTOR_POOL(sampler, vk::DescriptorType::eSampler);
+		//DESCRIPTOR_POOL(sampled, vk::DescriptorType::eSampledImage);
+		//DESCRIPTOR_POOL(storageImage, vk::DescriptorType::eStorageImage);
+		//DESCRIPTOR_POOL(uniformTexel, vk::DescriptorType::eUniformTexelBuffer);
+		//DESCRIPTOR_POOL(storageTexel, vk::DescriptorType::eStorageTexelBuffer);
+		//DESCRIPTOR_POOL(storage, vk::DescriptorType::eStorageBuffer);
+		//DESCRIPTOR_POOL(uniformDynamic, vk::DescriptorType::eUniformBufferDynamic);
+		//DESCRIPTOR_POOL(storageDynamic, vk::DescriptorType::eStorageBufferDynamic);
+		//DESCRIPTOR_POOL(input, vk::DescriptorType::eInputAttachment);
+		
+		auto descriptorPools = { uniform };
+		auto poolCreateInfo = vk::DescriptorPoolCreateInfo{};
+		poolCreateInfo
+			.setMaxSets(MaxFramesInFlight * 2)
+			.setPoolSizes(descriptorPools);
+		
+		//initialisers::descriptors::descriptor_pool_create(descriptorPools, MaxFramesInFlight * 2);
+		descriptorPool = state.device.createDescriptorPool(poolCreateInfo);
+		ENGINE_ASSERT(descriptorPool != vk::DescriptorPool{}, "Failed to create desriptor pool");
 
-		vk::DescriptorSetLayoutBinding fragUboBinding{};
-		fragUboBinding
-			.setBinding(0)
-			.setDescriptorCount(1)
-			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-			.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+		auto vbUBOLayout = initialisers::descriptors::descriptor_set_layout_binding(vk::DescriptorType::eUniformBuffer, 0, vk::ShaderStageFlagBits::eVertex, 1);
 
-		auto bindings = { fragUboBinding };
-		vk::DescriptorSetLayoutCreateInfo layoutInfo{};
-		layoutInfo.setBindings(bindings);
+		auto bindings = { vbUBOLayout };
+		//auto descriptorSetLayoutCreate = initialisers::descriptors::descriptor_set_layout_create(bindings);
+		auto descriptorSetLayoutCreate = vk::DescriptorSetLayoutCreateInfo{};
+		descriptorSetLayoutCreate
+				.setBindings(bindings);
 
-		descriptorSetLayout = state.device.createDescriptorSetLayout(layoutInfo/*, state.allocator*/);
+		descriptorSetLayout = state.device.createDescriptorSetLayout(descriptorSetLayoutCreate);
 		ENGINE_ASSERT(descriptorSetLayout != vk::DescriptorSetLayout{}, "Failed to create descriptor set");
+
+		std::vector<vk::DescriptorSetLayout> layouts(MaxFramesInFlight, descriptorSetLayout);
+		//auto descriptorAllocateInfo = initialisers::descriptors::descriptor_allocate_info(descriptorPool, MaxFramesInFlight, layouts);
+		auto descriptorAllocateInfo = vk::DescriptorSetAllocateInfo{};
+		descriptorAllocateInfo
+				.setDescriptorPool(descriptorPool)
+				.setDescriptorSetCount(MaxFramesInFlight)
+				.setSetLayouts(layouts);
+	auto d = state.device.allocateDescriptorSets(descriptorAllocateInfo);
+	descriptorSets = d;
+
+	std::vector<vk::WriteDescriptorSet> writeDescriptors;
+		for (size_t i{ 0 }; i < MaxFramesInFlight; ++i)
+		{
+
+		shaderData[i].buffer._descriptor.range = sizeof(ShaderData::Values);
+		auto descriptorInfo = { shaderData[i].buffer._descriptor};
+		//auto uboWriteSet = initialisers::descriptors::descriptor_write_set(descriptorSets.board[0], 0, vk::DescriptorType::eUniformBuffer, descriptorInfo);
+		auto uboWriteSet = vk::WriteDescriptorSet{};
+		uboWriteSet
+				.setDstSet(descriptorSets[i])
+				.setDstBinding(0)
+				.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+				.setBufferInfo(descriptorInfo);
+		writeDescriptors.push_back(uboWriteSet);
+		}
+
+		state.device.updateDescriptorSets(writeDescriptors, nullptr);
+
+
+		auto setLayouts = { descriptorSetLayout };
+		vk::PushConstantRange pushConstantRange = vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0,sizeof(glm::mat4));
+		vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+		pipelineLayoutInfo
+			.setPushConstantRanges(pushConstantRange)
+			.setSetLayouts(setLayouts);
+
+		pipelineLayout = state.device.createPipelineLayout(pipelineLayoutInfo);
+		ENGINE_ASSERT(pipelineLayout != vk::PipelineLayout{}, "FAiled to create pipeline layout");
 	}
 
 	void egakeru::createGraphicsPipeline()
 	{
-		PROFILE_FUNCTION()
-		auto boardVertShaderCode = readShader("boardVert.spv");
+		auto boardVertShaderCode = readShader("vert.spv");
 		ENGINE_ASSERT(!boardVertShaderCode.empty(), "Failed to create shader");
-		auto boardFragShaderCode = readShader("boardFrag.spv");
+		auto boardFragShaderCode = readShader("frag.spv");
 		ENGINE_ASSERT(!boardFragShaderCode.empty(), "Failed to create shader");
 
 		vertShaderModule = createShaderModule(boardVertShaderCode);
@@ -573,26 +626,19 @@ namespace egkr
 
 		auto viewportState = initialisers::pipeline::viewportCreate(0.f, 0.f, swapchainExtent, 0.f, 1.f, { 0, 0 });
 
-		constexpr auto rasterizer = initialisers::pipeline::rasterizationCreate(false, false, vk::PolygonMode::eFill, 1.f, vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise, false, 0.f, 0.f, 0.f);
+		constexpr auto rasterizer = initialisers::pipeline::rasterizationCreate(false, false, vk::PolygonMode::eFill, 1.f, vk::CullModeFlagBits::eBack, vk::FrontFace::eClockwise, false, 0.f, 0.f, 0.f);
 		constexpr auto multisample = initialisers::pipeline::multisampleCreate(false, vk::SampleCountFlagBits::e1, 1.f, false, false);
 
 		constexpr auto colourMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
 		constexpr auto blendOne = vk::BlendFactor::eOne;
 		constexpr auto add = vk::BlendOp::eAdd;
-		constexpr auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, false, blendOne, blendOne, add, blendOne, vk::BlendFactor::eZero, add);;
+		auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, false, blendOne, blendOne, add, blendOne, vk::BlendFactor::eZero, add);;
 
-		constexpr auto attachments = { colourBlendAttachmentState };
+		auto attachments = { colourBlendAttachmentState };
 
-		constexpr auto colourBlendCreate = initialisers::pipeline::colourBlendStateCreate(attachments, false, vk::LogicOp::eCopy, { 0.f, 0.f, 0.f, 0.f });
+		auto colourBlendCreate = initialisers::pipeline::colourBlendStateCreate(attachments, false, vk::LogicOp::eCopy, { 0.f, 0.f, 0.f, 0.f });
 		constexpr auto depthStencilInfo = initialisers::pipeline::depthStencilCreate(true, true, vk::CompareOp::eLess, false, false);
 
-		vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
-		pipelineLayoutInfo
-			.setPushConstantRanges(nullptr)
-			.setSetLayouts(descriptorSetLayout);
-
-		pipelineLayout = state.device.createPipelineLayout(pipelineLayoutInfo);
-		ENGINE_ASSERT(pipelineLayout != vk::PipelineLayout{}, "FAiled to create pipeline layout");
 
 		vk::GraphicsPipelineCreateInfo pipelineInfo{};
 		pipelineInfo
@@ -612,12 +658,12 @@ namespace egkr
 
 		auto createInfos = { pipelineInfo };
 
-		auto pipelin = state.device.createGraphicsPipelines(VK_NULL_HANDLE, createInfos).value;
+		const auto& pipelin = state.device.createGraphicsPipelines(VK_NULL_HANDLE, createInfos).value;
 
 		pipelines.board = pipelin[0];
 		ENGINE_ASSERT(pipelines.board != vk::Pipeline{}, "Failed to create graphics pipeline");
 
-		SpriteRenderer::create(pipelineInfo, swapchainExtent);
+		//SpriteRenderer::create(pipelineInfo, swapchainExtent);
 
 	}
 
@@ -719,29 +765,29 @@ namespace egkr
 
 	void egakeru::createVertexBuffer()
 	{
-		vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+//		vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-		BufferProperties properties =
-		{
-			.size = bufferSize,
-			.usage = vk::BufferUsageFlagBits::eTransferSrc,
-			.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
-		};
+//		BufferProperties properties =
+//		{
+//			.size = bufferSize,
+//			.usage = vk::BufferUsageFlagBits::eTransferSrc,
+//			.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+//		};
+//
+//		auto stagingBuffer = Buffer(properties);
+//		stagingBuffer.map(vertices.data());
+//
+//		BufferProperties vertexBufferProperties =
+//		{
+//			.size = bufferSize,
+//			.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+//			.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+//		};
+//
+//		vertexBuffer = Buffer(vertexBufferProperties);
+//		vertexBuffer.copy(stagingBuffer);
 
-		auto stagingBuffer = Buffer(properties);
-		stagingBuffer.map(vertices.data());
-
-		BufferProperties vertexBufferProperties =
-		{
-			.size = bufferSize,
-			.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
-			.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
-		};
-
-		vertexBuffer = Buffer(vertexBufferProperties);
-		vertexBuffer.copy(stagingBuffer);
-
-		stagingBuffer.destroy();
+//		stagingBuffer.destroy();
 	}
 
 	void egakeru::createIndexBuffer()
@@ -791,63 +837,19 @@ namespace egkr
 		for (auto i = 0; i < MaxFramesInFlight; i++)
 		{
 			boardPropertiesBuffer[i] = Buffer(properties);
-		}
-	}
-
-	void egakeru::createDescriptorPool()
-	{
-
-		DESCRIPTOR_POOL(sampler, vk::DescriptorType::eSampler);
-		DESCRIPTOR_POOL(combinedSample, vk::DescriptorType::eCombinedImageSampler);
-		DESCRIPTOR_POOL(sampled, vk::DescriptorType::eSampledImage);
-		DESCRIPTOR_POOL(storageImage, vk::DescriptorType::eStorageImage);
-		DESCRIPTOR_POOL(uniformTexel, vk::DescriptorType::eUniformTexelBuffer);
-		DESCRIPTOR_POOL(storageTexel, vk::DescriptorType::eStorageTexelBuffer);
-		DESCRIPTOR_POOL(uniform, vk::DescriptorType::eUniformBuffer);
-		DESCRIPTOR_POOL(storage, vk::DescriptorType::eStorageBuffer);
-		DESCRIPTOR_POOL(uniformDynamic, vk::DescriptorType::eUniformBufferDynamic);
-		DESCRIPTOR_POOL(storageDynamic, vk::DescriptorType::eStorageBufferDynamic);
-		DESCRIPTOR_POOL(input, vk::DescriptorType::eInputAttachment);
-
-		auto descriptorPools = { uniform, combinedSample };
-
-		vk::DescriptorPoolCreateInfo info{};
-		info.setPoolSizes(descriptorPools);
-		info.setMaxSets(MaxFramesInFlight * 2);
-		descriptorPool = state.device.createDescriptorPool(info);
-		ENGINE_ASSERT(descriptorPool != vk::DescriptorPool{}, "Failed to create desriptor pool")
-	}
-
-	void egakeru::createDescriptorSets()
-	{
-		std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
-		std::vector<vk::DescriptorSetLayout> layouts(MaxFramesInFlight, descriptorSetLayout);
-
-		vk::DescriptorSetAllocateInfo allocInfo{};
-		allocInfo
-			.setDescriptorPool(descriptorPool)
-			.setDescriptorSetCount(MaxFramesInFlight)
-			.setSetLayouts(layouts);
-
-		descriptorSets.board = state.device.allocateDescriptorSets(allocInfo);
-		for (const auto& descriptorSet : descriptorSets.board)
-		{
-			ENGINE_ASSERT(descriptorSet != vk::DescriptorSet{}, "Failed to create descriptor set");
+			BufferProperties fproperties =
+			{
+				.size = sizeof(shaderData[i].values),
+				.usage = vk::BufferUsageFlagBits::eUniformBuffer,
+				.memoryProperties = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostVisible
+			};
+			shaderData[i].buffer = Buffer(fproperties);
+			shaderData[i].values.model = glm::translate(shaderData[i].values.model, glm::vec3(0, 0, -1));
+			shaderData[i].values.model = glm::rotate(shaderData[i].values.model, glm::radians(90.f), glm::vec3(1, 0, 0));
+			shaderData[i].values.model = glm::rotate(shaderData[i].values.model, glm::radians(90.f), glm::vec3(0, 0, 1));
 		}
 
-		for (int i = 0; i < MaxFramesInFlight; i++)
-		{
-			boardPropertiesBuffer[i]._descriptor.range = sizeof(BoardProperties);
-			vk::WriteDescriptorSet boardUniformDescriptorSet{};
-			boardUniformDescriptorSet
-				.setDstSet(descriptorSets.board[i])
-				.setDstBinding(0)
-				.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-				.setBufferInfo(boardPropertiesBuffer[i]._descriptor);
 
-			writeDescriptorSets.push_back(boardUniformDescriptorSet);
-		}
-		state.device.updateDescriptorSets(writeDescriptorSets, nullptr);
 	}
 
 	void egakeru::createCommandBuffers()
@@ -886,9 +888,11 @@ namespace egkr
 	void egakeru::updateUniformBuffer(const BoardProperties& boardProperties, uint32_t currentImage)
 	{
 		boardPropertiesBuffer[currentImage].map(&boardProperties);
+
+		shaderData[currentImage].buffer.map(&shaderData[currentImage].values);
 	}
 
-	void egakeru::drawFrame(const BoardProperties& boardProperties)
+	void egakeru::drawFrame(const BoardProperties& boardProperties, Model::SharedPtr model)
 	{
 		PROFILE_FUNCTION()
 		auto result = state.device.waitForFences(inFlightFences[currentFrame], true, UINT64_MAX);
@@ -932,12 +936,10 @@ namespace egkr
 		renderPassInfo.setClearValues(clearValues);
 
 		commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines.board);
 
-		vk::DeviceSize offsets = { 0 };
-		commandBuffer.bindVertexBuffers(0, vertexBuffer.buffer, offsets);
-		commandBuffer.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
-		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets.board[currentFrame], nullptr);
+		//vk::DeviceSize offsets = { 0 };
+		//commandBuffer.bindVertexBuffers(0, vertexBuffer.buffer, offsets);
+		//commandBuffer.bindIndexBuffer(indexBuffer.buffer, 0, vk::IndexType::eUint32);
 
 
 		vk::Viewport viewport{};
@@ -957,13 +959,20 @@ namespace egkr
 		commandBuffer.setScissor(0, scissor);
 
 
-		commandBuffer.drawIndexed(6, 1, 0, 0, 0);
+		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines.board);
+		//commandBuffer.drawIndexed(6, 1, 0, 0, 0);
 
-		SpriteRenderer::render(commandBuffer, currentFrame);
-
+		//SpriteRenderer::render(commandBuffer, currentFrame);
+		model->draw(commandBuffer, pipelineLayout);
 		commandBuffer.endRenderPass();
 			});
+		{
+			Gui::Window wind(_gui.get(), "Lighting");
 
+			wind.var("Light Pos", shaderData[0].values.lightPos, -100.f, 100.f, 0.1f);
+			shaderData[1].values.lightPos = shaderData[0].values.lightPos;
+		}
 		_gui->render(swapchainExtent, currentFrame, imageIndex);
 
 		vk::SubmitInfo submitInfo{};
@@ -975,7 +984,7 @@ namespace egkr
 		submitInfo.setWaitSemaphores(waitSemaphore);
 		submitInfo.setWaitDstStageMask(waitStages);
 
-		auto commandBuffers = { commandBuffer, _gui->getCommandBuffer(currentFrame) };
+		auto commandBuffers = { commandBuffer, _gui->getCommandBuffer(currentFrame)};
 		submitInfo.setCommandBuffers(commandBuffers);
 
 		//submitInfo.setSignalSemaphoreCount(1);
@@ -1071,6 +1080,7 @@ namespace egkr
 		for (int i = 0; i < MaxFramesInFlight; i++)
 		{
 			boardPropertiesBuffer[i].destroy();
+			shaderData[i].buffer.destroy();
 		}
 
 		state.device.destroyDescriptorSetLayout(descriptorSetLayout);

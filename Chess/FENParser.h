@@ -8,7 +8,7 @@
 
 #include <string_view>
 
-const static std::string _startingPosition = "rnbqkbnr/pppppp1p/6p1/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const static std::string _startingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 class FENParser
 {
