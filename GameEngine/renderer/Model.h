@@ -7,6 +7,7 @@
 #include <memory>
 #include <filesystem>
 
+    class Gui;
 namespace egkr
 {
     struct Primitive
@@ -40,6 +41,7 @@ namespace egkr
         static SharedPtr create() noexcept;
 
         void set_parent(SharedPtr parent) noexcept;
+        void set_matrix(glm::mat4 matrix) noexcept;
         void add_primitive(Primitive&& primitive) noexcept;
         void add_child(Node::SharedPtr child) noexcept;
 
@@ -83,7 +85,7 @@ namespace egkr
         static SharedPtr create() noexcept;
         static SharedPtr createGLTF(std::filesystem::path filepath) noexcept;
         void draw(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) const;
-
+        void render_ui(Gui* ui);
     private:
         Model() = default;
         void draw_node(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout, Node::SharedPtr node) const;

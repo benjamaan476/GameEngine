@@ -1,9 +1,11 @@
 #include "Model.h"
+#include "../ui/gui.h"
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "tiny_gltf.h"
 
+#include "glm/gtx/matrix_decompose.hpp"
 namespace egkr
 {
     Node::SharedPtr Node::create() noexcept
@@ -14,6 +16,11 @@ namespace egkr
     void Node::set_parent(SharedPtr parent) noexcept
     {
         _parent = parent;
+    }
+
+    void Node::set_matrix(glm::mat4 matrix) noexcept
+    {
+        _matrix = matrix;
     }
 
     void Node::add_primitive(Primitive&& primitive) noexcept
@@ -229,6 +236,27 @@ namespace egkr
         {
             draw_node(commandBuffer, pipelineLayout, node);
         }
+    }
+
+    void Model::render_ui(Gui* ui)
+    {
+        auto window = Gui::Window(ui, "Model Properties");
+        auto position = _nodes[0]->get_matrix();
+
+        glm::vec3 scale, translation, skew;
+        glm::vec4 perspective;
+        glm::quat orientation;
+        glm::decompose(position, scale, orientation, translation, skew, perspective);
+
+        window.var("Position", translation, -100.f, 100.f, .1f);
+        //window.var("Rotation", orientation, -4.f, 4.f, .1f);
+        window.var("Scale", scale, 0.01f, 10.f, .1f);
+
+        //position = glm::scale(glm::mat4(1.f), scale);
+        //position = glm::rotate(position)
+        position = glm::translate(glm::mat4(1.f), translation);
+        _nodes[0]->set_matrix(position);
+        
     }
 
     void Model::draw_node(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout, Node::SharedPtr node) const

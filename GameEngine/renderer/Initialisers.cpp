@@ -24,9 +24,10 @@ namespace egkr::initialisers
 		auto descriptor_pool_create(const std::vector<vk::DescriptorPoolSize>& poolSizes, uint32_t maxSets) noexcept -> vk::DescriptorPoolCreateInfo
 		{
 			vk::DescriptorPoolCreateInfo info{};
-			return info
+			 info
 				.setPoolSizes(poolSizes)
 				.setMaxSets(maxSets);
+			 return info;
 		}
 
 		auto descriptor_allocate_info(vk::DescriptorPool descriptorPool, uint32_t count, const std::vector<vk::DescriptorSetLayout>& layouts) noexcept -> vk::DescriptorSetAllocateInfo

@@ -19,7 +19,7 @@ Application::Application(std::string_view name, uint32_t width, uint32_t height)
 	//chessSprite = egkr::egakeru::createSprite(image);
 	initGui();
 
-	std::filesystem::path filepath = R"(C:\Users\bencr\source\repos\Vulkan\assets\models\cerberus\cerberus.gltf)";
+	std::filesystem::path filepath = R"(C:\Users\bencr\source\repos\Vulkan\assets\models\voyager.gltf)";
 	model = egkr::Model::createGLTF(filepath);
 	PROFILE_END_SESSION();
 }
@@ -115,6 +115,7 @@ void Application::mainLoop()
 				wind.endDropDestination();
 			}
 
+			model->render_ui(_gui.get());
 			//Gui::Window sprite(_gui.get(), "Sprite Editor");
 			//sprite.var("Sprite Size", chessSprite->size, 0.f, 1000.f, 10.f);
 			//sprite.var("Sprite Position", chessSprite->position, 0.f, 1000.f, 10.f);

@@ -531,7 +531,7 @@ namespace egkr
 			.setMaxSets(MaxFramesInFlight * 2)
 			.setPoolSizes(descriptorPools);
 		
-		//initialisers::descriptors::descriptor_pool_create(descriptorPools, MaxFramesInFlight * 2);
+		//auto poolCreateInfo = initialisers::descriptors::descriptor_pool_create(descriptorPools, MaxFramesInFlight * 2);
 		descriptorPool = state.device.createDescriptorPool(poolCreateInfo);
 		ENGINE_ASSERT(descriptorPool != vk::DescriptorPool{}, "Failed to create desriptor pool");
 
@@ -553,8 +553,7 @@ namespace egkr
 				.setDescriptorPool(descriptorPool)
 				.setDescriptorSetCount(MaxFramesInFlight)
 				.setSetLayouts(layouts);
-	auto d = state.device.allocateDescriptorSets(descriptorAllocateInfo);
-	descriptorSets = d;
+		descriptorSets = state.device.allocateDescriptorSets(descriptorAllocateInfo);
 
 	std::vector<vk::WriteDescriptorSet> writeDescriptors;
 		for (size_t i{ 0 }; i < MaxFramesInFlight; ++i)
