@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "../EngineCore.h"
 #include "../Application.h"
+#include "Pipeline.h"
 
 #include "Initialisers.h"
 
@@ -37,7 +38,6 @@ namespace egkr
 
 	void egakeru::create()
 	{
-		PROFILE_FUNCTION()
 		initVulkan();
 		_gui = Gui::get();
 	}
@@ -458,57 +458,39 @@ namespace egkr
 
 	void egakeru::createRenderPass()
 	{
-		PROFILE_FUNCTION()
-		vk::AttachmentDescription colourAttachment{};
-		colourAttachment.setFormat(_swapchainFormat);
-		colourAttachment.setSamples(vk::SampleCountFlagBits::e1);
-		colourAttachment.setLoadOp(vk::AttachmentLoadOp::eClear);
-		colourAttachment.setStoreOp(vk::AttachmentStoreOp::eStore);
-		colourAttachment.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
-		colourAttachment.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
-		colourAttachment.setInitialLayout(vk::ImageLayout::eUndefined);
-		colourAttachment.setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal);
+		RenderPassDescription description{
+			.renderPassName = "Sample render pass"
+		};
+		renderPass = RenderPass::create(description);
 
-		vk::AttachmentReference colourAttachmentRef{};
-		colourAttachmentRef.setAttachment(0);
-		colourAttachmentRef.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+		egkr::Attachment colourAttachment
+		{
+			.format = _swapchainFormat,
+			.samples = vk::SampleCountFlagBits::e1,
+			.loadOp = vk::AttachmentLoadOp::eClear,
+			.storeOp = vk::AttachmentStoreOp::eStore,
+			.stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+			.stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+			.initialLayout = vk::ImageLayout::eUndefined,
+			.finalLayout = vk::ImageLayout::eColorAttachmentOptimal
+		};
 
-		vk::AttachmentDescription depthAttachment{};
-		depthAttachment.setFormat(state.findDepthFormat());
-		depthAttachment.setSamples(vk::SampleCountFlagBits::e1);
-		depthAttachment.setLoadOp(vk::AttachmentLoadOp::eClear);
-		depthAttachment.setStoreOp(vk::AttachmentStoreOp::eDontCare);
-		depthAttachment.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
-		depthAttachment.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
-		depthAttachment.setInitialLayout(vk::ImageLayout::eUndefined);
-		depthAttachment.setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+		renderPass->set_colour_attachment(colourAttachment);
 
-		vk::AttachmentReference depthAttachmentRef{};
-		depthAttachmentRef.setAttachment(1);
-		depthAttachmentRef.setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+		egkr::Attachment depthAttachment
+		{
+			.format = state.findDepthFormat(),
+			.samples = vk::SampleCountFlagBits::e1,
+			.loadOp = vk::AttachmentLoadOp::eClear,
+			.storeOp = vk::AttachmentStoreOp::eDontCare,
+			.stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+			.stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+			.initialLayout = vk::ImageLayout::eUndefined,
+			.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal
+		};
 
-		vk::SubpassDescription subpass{};
-		subpass.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
-		subpass.setColorAttachments(colourAttachmentRef);
-		subpass.setPDepthStencilAttachment(&depthAttachmentRef);
-
-		vk::SubpassDependency dependency{};
-		dependency.setSrcSubpass(VK_SUBPASS_EXTERNAL);
-		dependency.setDstSubpass(0);
-		dependency.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests);
-		dependency.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests);
-		dependency.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite);
-
-		auto attachments = { colourAttachment, depthAttachment };
-
-		vk::RenderPassCreateInfo renderPassInfo{};
-		renderPassInfo.setAttachments(attachments);
-		renderPassInfo.setSubpasses(subpass);
-		renderPassInfo.setDependencies(dependency);
-
-		renderPass = state.device.createRenderPass(renderPassInfo);
-
-		ENGINE_ASSERT(renderPass != vk::RenderPass{}, "Failed to create render pass");
+		renderPass->set_depth_attachment(depthAttachment);
+		renderPass->bake();
 	}
 
 	void egakeru::setup_descriptors()
@@ -587,80 +569,12 @@ namespace egkr
 
 	void egakeru::createGraphicsPipeline()
 	{
-		auto boardVertShaderCode = readShader("vert.spv");
-		ENGINE_ASSERT(!boardVertShaderCode.empty(), "Failed to create shader");
-		auto boardFragShaderCode = readShader("frag.spv");
-		ENGINE_ASSERT(!boardFragShaderCode.empty(), "Failed to create shader");
+		PipelineDescription description{};
+		description.pipelineLayout = pipelineLayout;
+		description.renderPass = renderPass->get();
+		description.swapchainExtent = swapchainExtent;
 
-		vertShaderModule = createShaderModule(boardVertShaderCode);
-		fragShaderModule = createShaderModule(boardFragShaderCode);
-
-		auto vertShaderStageInfo = initialisers::pipeline::shaderCreate(vk::ShaderStageFlagBits::eVertex, "main", vertShaderModule);
-		auto fragShaderStageInfo = initialisers::pipeline::shaderCreate(vk::ShaderStageFlagBits::eFragment, "main", fragShaderModule);
-
-		auto shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-
-		auto dynamicStates =
-		{
-			vk::DynamicState::eViewport,
-			vk::DynamicState::eScissor
-		};
-
-		vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
-
-		dynamicStateCreateInfo.setDynamicStates(dynamicStates);
-
-
-		auto bindingDescription = Vertex::getBindingDescription();
-		auto attributeDescription = Vertex::getAttributeDescription();
-
-		vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-		vertexInputInfo
-			.setVertexBindingDescriptions(bindingDescription)
-			.setVertexAttributeDescriptions(attributeDescription);
-
-		//auto vertexInputInfo = initialisers::pipeline::vertexInputCreate();
-
-		constexpr auto inputAssembly = initialisers::pipeline::inputAssemblyCreate(vk::PrimitiveTopology::eTriangleList, false);
-
-		auto viewportState = initialisers::pipeline::viewportCreate(0.f, 0.f, swapchainExtent, 0.f, 1.f, { 0, 0 });
-
-		constexpr auto rasterizer = initialisers::pipeline::rasterizationCreate(false, false, vk::PolygonMode::eFill, 1.f, vk::CullModeFlagBits::eBack, vk::FrontFace::eClockwise, false, 0.f, 0.f, 0.f);
-		constexpr auto multisample = initialisers::pipeline::multisampleCreate(false, vk::SampleCountFlagBits::e1, 1.f, false, false);
-
-		constexpr auto colourMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
-		constexpr auto blendOne = vk::BlendFactor::eOne;
-		constexpr auto add = vk::BlendOp::eAdd;
-		auto colourBlendAttachmentState = initialisers::pipeline::colourBlendAttachementState(colourMask, false, blendOne, blendOne, add, blendOne, vk::BlendFactor::eZero, add);;
-
-		auto attachments = { colourBlendAttachmentState };
-
-		auto colourBlendCreate = initialisers::pipeline::colourBlendStateCreate(attachments, false, vk::LogicOp::eCopy, { 0.f, 0.f, 0.f, 0.f });
-		constexpr auto depthStencilInfo = initialisers::pipeline::depthStencilCreate(true, true, vk::CompareOp::eLess, false, false);
-
-
-		vk::GraphicsPipelineCreateInfo pipelineInfo{};
-		pipelineInfo
-			.setStages(shaderStages)
-			.setPVertexInputState(&vertexInputInfo)
-			.setPInputAssemblyState(&inputAssembly)
-			.setPViewportState(&viewportState)
-			.setPRasterizationState(&rasterizer)
-			.setPMultisampleState(&multisample)
-			.setPColorBlendState(&colourBlendCreate)
-			.setPDynamicState(&dynamicStateCreateInfo)
-			.setPDepthStencilState(&depthStencilInfo)
-			.setLayout(pipelineLayout)
-			.setRenderPass(renderPass)
-			.setSubpass(0)
-			.setBasePipelineIndex(-1);
-
-		auto createInfos = { pipelineInfo };
-
-		const auto& pipelin = state.device.createGraphicsPipelines(VK_NULL_HANDLE, createInfos).value;
-
-		pipelines.board = pipelin[0];
-		ENGINE_ASSERT(pipelines.board != vk::Pipeline{}, "Failed to create graphics pipeline");
+		pipeline = Pipeline::create(description);
 
 		//SpriteRenderer::create(pipelineInfo, swapchainExtent);
 
@@ -695,7 +609,7 @@ namespace egkr
 
 			vk::FramebufferCreateInfo framebufferInfo{};
 			framebufferInfo
-				.setRenderPass(renderPass)
+				.setRenderPass(renderPass->get())
 				.setAttachments(attachments)
 				.setWidth(swapchainExtent.width)
 				.setHeight(swapchainExtent.height)
@@ -922,7 +836,7 @@ namespace egkr
 			{
 				vk::RenderPassBeginInfo renderPassInfo{};
 		renderPassInfo
-			.setRenderPass(renderPass)
+			.setRenderPass(renderPass->get())
 			.setFramebuffer(swapChainFramebuffers[imageIndex])
 			.setRenderArea(vk::Rect2D({ 0, 0 }, swapchainExtent));
 
@@ -959,7 +873,7 @@ namespace egkr
 
 
 		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
-		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipelines.board);
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline->get_pipeline());
 		//commandBuffer.drawIndexed(6, 1, 0, 0, 0);
 
 		//SpriteRenderer::render(commandBuffer, currentFrame);
@@ -1083,9 +997,7 @@ namespace egkr
 		}
 
 		state.device.destroyDescriptorSetLayout(descriptorSetLayout);
-		state.device.destroyPipeline(pipelines.board);
 		state.device.destroyPipelineLayout(pipelineLayout);
-		state.device.destroyRenderPass(renderPass);
 		state.device.destroyShaderModule(fragShaderModule);
 		state.device.destroyShaderModule(vertShaderModule);
 
@@ -1094,6 +1006,9 @@ namespace egkr
 		{
 			DestroyDebugUtilsMessengerEXT(state.instance, _debugMessenger, nullptr);
 		}
+		renderPass.reset();
+		pipeline.reset();
+
 		state.device.destroy();
 		state.instance.destroy();
 	}

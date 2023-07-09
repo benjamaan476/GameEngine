@@ -5,6 +5,8 @@
 #include "SpriteRenderer.h"
 #include "Model.h"
 #include "../BoardProperties.h"
+#include "Pipeline.h"
+#include "RenderPass.h"
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
@@ -131,7 +133,6 @@ namespace egkr
 		static inline std::vector<Texture2D> _swapchainImages;
 		static inline vk::ShaderModule vertShaderModule;
 		static inline vk::ShaderModule fragShaderModule;
-		static inline vk::RenderPass renderPass;
 
 		static inline vk::DescriptorSetLayout descriptorSetLayout;
 		static inline vk::DescriptorPool descriptorPool;
@@ -148,11 +149,8 @@ namespace egkr
 		static inline std::vector<vk::Semaphore> renderFinishedSemaphores;
 		static inline std::vector<vk::Fence> inFlightFences;
 
-		static inline struct
-		{
-			vk::Pipeline board;
-			vk::Pipeline pieces;
-		} pipelines;
+		static inline Pipeline::SharedPtr pipeline;
+		static inline RenderPass::SharedPtr renderPass;
 
 		static inline std::vector<vk::DescriptorSet> descriptorSets;
 

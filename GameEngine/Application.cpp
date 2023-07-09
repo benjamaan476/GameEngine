@@ -19,7 +19,7 @@ Application::Application(std::string_view name, uint32_t width, uint32_t height)
 	//chessSprite = egkr::egakeru::createSprite(image);
 	initGui();
 
-	std::filesystem::path filepath = R"(C:\Users\bencr\source\repos\Vulkan\assets\models\voyager.gltf)";
+	std::filesystem::path filepath = R"(C:\Users\bencr\source\repos\Vulkan\assets\models\cerberus\cerberus.gltf)";
 	model = egkr::Model::createGLTF(filepath);
 	PROFILE_END_SESSION();
 }
