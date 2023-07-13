@@ -17,6 +17,7 @@
       ]
     },
     "stb",
-    "gtest"
+    "gtest",
+    "tinygltf"
   ]
 }

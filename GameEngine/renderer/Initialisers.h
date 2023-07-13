@@ -2,8 +2,20 @@
 
 #include "RendererCore.h"
 
+
 namespace egkr::initialisers
 {
+
+	namespace descriptors
+	{
+
+		[[nodiscard]] auto descriptor_set_layout_binding(vk::DescriptorType type, uint32_t bindingPoint, vk::ShaderStageFlags stages, uint32_t count) noexcept -> vk::DescriptorSetLayoutBinding;
+		[[nodiscard]] auto descriptor_set_layout_create(const std::vector<vk::DescriptorSetLayoutBinding>& bindings) noexcept -> vk::DescriptorSetLayoutCreateInfo;
+		[[nodiscard]] auto descriptor_pool_create(const std::vector<vk::DescriptorPoolSize>& poolSizes, uint32_t maxSets) noexcept -> vk::DescriptorPoolCreateInfo;
+		[[nodiscard]] auto descriptor_allocate_info(vk::DescriptorPool descriptorPool, uint32_t count, const std::vector<vk::DescriptorSetLayout>& layouts) noexcept -> vk::DescriptorSetAllocateInfo;
+		[[nodiscard]] auto descriptor_write_set(vk::DescriptorSet dstSet, uint32_t bindingPoint, vk::DescriptorType type, const std::vector<vk::DescriptorBufferInfo>& bufferInfo) noexcept -> vk::WriteDescriptorSet;
+	}
+
 	namespace pipeline
 	{
 		auto viewportCreate(float x, float y, vk::Extent2D swapchainExtent, float minDepth, float maxDepth, vk::Offset2D offset) -> vk::PipelineViewportStateCreateInfo;
@@ -60,20 +72,14 @@ namespace egkr::initialisers
 				.setAlphaToOneEnable(alphaToOneEnabled);
 		}
 
-		consteval auto colourBlendAttachementState(vk::ColorComponentFlags colourMask, bool blendEnabled, vk::BlendFactor srcColourBlend, vk::BlendFactor dstColourBlend, vk::BlendOp colourBlendOp, vk::BlendFactor srcAlphaBlend, vk::BlendFactor dstAlphaBlend, vk::BlendOp alphaBlendOp)
-		{
-			vk::PipelineColorBlendAttachmentState colourBlendState{};
-
-			return colourBlendState
-				.setColorWriteMask(colourMask)
-				.setBlendEnable(blendEnabled)
-				.setSrcColorBlendFactor(srcColourBlend)
-				.setDstColorBlendFactor(dstColourBlend)
-				.setColorBlendOp(colourBlendOp)
-				.setSrcAlphaBlendFactor(srcAlphaBlend)
-				.setDstAlphaBlendFactor(dstAlphaBlend)
-				.setAlphaBlendOp(alphaBlendOp);
-		}
+		auto colourBlendAttachementState(vk::ColorComponentFlags colourMask,
+                  bool blendEnabled,
+                  vk::BlendFactor srcColourBlend,
+                  vk::BlendFactor dstColourBlend,
+                  vk::BlendOp colourBlendOp,
+                  vk::BlendFactor srcAlphaBlend,
+                  vk::BlendFactor dstAlphaBlend,
+                  vk::BlendOp alphaBlendOp) -> vk::PipelineColorBlendAttachmentState;
 
 		consteval auto depthStencilCreate(bool enabled, bool writeEnabled, vk::CompareOp compareOp, bool boundsEnabled, bool stencilEnabled)
 		{
@@ -87,17 +93,10 @@ namespace egkr::initialisers
 				.setStencilTestEnable(stencilEnabled);
 		}
 
-		consteval auto colourBlendStateCreate(std::span<const vk::PipelineColorBlendAttachmentState> attachements, bool logicOpEnabled, vk::LogicOp logicOp, const std::array<float, 4>& blendConstants)
-		{
-			vk::PipelineColorBlendStateCreateInfo colourBlendState{};
-
-			return colourBlendState
-				.setAttachmentCount((uint32_t)attachements.size())
-				.setPAttachments(attachements.data())
-				.setLogicOpEnable(logicOpEnabled)
-				.setLogicOp(logicOp)
-				.setBlendConstants(blendConstants);
-		}
+		auto colourBlendStateCreate(std::span<const vk::PipelineColorBlendAttachmentState> attachements,
+                  bool logicOpEnabled,
+                  vk::LogicOp logicOp,
+                  const std::array<float, 4> &blendConstants) -> vk::PipelineColorBlendStateCreateInfo;
 
 	}
 }

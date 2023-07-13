@@ -42,6 +42,7 @@ private:
 	std::string _droppedPayload;
 
 	egkr::Texture2D image{};
-	std::shared_ptr<egkr::Sprite> chessSprite;
+	egkr::Model::SharedPtr model{};
+	//std::shared_ptr<egkr::Sprite> chessSprite;
 };
 

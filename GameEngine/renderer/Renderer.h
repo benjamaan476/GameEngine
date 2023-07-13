@@ -3,13 +3,14 @@
 #include "RendererCore.h"
 #include "Sprite.h"
 #include "SpriteRenderer.h"
-
+#include "Model.h"
 #include "../BoardProperties.h"
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace egkr
 {
@@ -18,14 +19,32 @@ namespace egkr
 	public:
 		static void create();
 		static void cleanup();
-		static void drawFrame(const BoardProperties& boardProperties);
+		static void drawFrame(const BoardProperties& boardProperties, Model::SharedPtr model);
 
-		static egakeru& get() { return *_instance; }
-		static vk::Format getFormat() { return _swapchainFormat; }
-		static const std::vector<Texture2D>& getSwapchainImages() { return _swapchainImages; }
-		static const inline vk::Sampler& getTextureSampler() { return textureSampler; }
-		static const inline vk::Sampler getSampler() { return textureSampler; }
-		static const inline vk::PipelineLayout getPipelineLayout() { return pipelineLayout; }
+		static egakeru& get()
+		{
+			return *_instance;
+		}
+		static vk::Format getFormat()
+		{
+			return _swapchainFormat;
+		}
+		static const std::vector<Texture2D>& getSwapchainImages()
+		{
+			return _swapchainImages;
+		}
+		static const inline vk::Sampler& getTextureSampler()
+		{
+			return textureSampler;
+		}
+		static const inline vk::Sampler getSampler()
+		{
+			return textureSampler;
+		}
+		static const inline vk::PipelineLayout getPipelineLayout()
+		{
+			return pipelineLayout;
+		}
 
 		static std::shared_ptr<egkr::Sprite> createSprite(const Texture2D& texture);
 
@@ -84,7 +103,7 @@ namespace egkr
 		static void createLogicalDevice();
 		static void createSwapchain();
 		static void createRenderPass();
-		static void createDescriptorSetLayout();
+		static void setup_descriptors();
 		static void createGraphicsPipeline();
 		static void createFramebuffers();
 		static void createCommandPool();
@@ -93,8 +112,6 @@ namespace egkr
 		static void createVertexBuffer();
 		static void createIndexBuffer();
 		static void createUniformBuffers();
-		static void createDescriptorPool();
-		static void createDescriptorSets();
 		static void createCommandBuffers();
 		static void createSyncObjects();
 		static void updateUniformBuffer(const BoardProperties& boardProperties, uint32_t currentImage);
@@ -115,8 +132,10 @@ namespace egkr
 		static inline vk::ShaderModule vertShaderModule;
 		static inline vk::ShaderModule fragShaderModule;
 		static inline vk::RenderPass renderPass;
+
 		static inline vk::DescriptorSetLayout descriptorSetLayout;
 		static inline vk::DescriptorPool descriptorPool;
+
 		static inline vk::PipelineLayout pipelineLayout;
 		static inline std::vector<vk::Framebuffer> swapChainFramebuffers;
 		static inline Buffer vertexBuffer;
@@ -135,17 +154,14 @@ namespace egkr
 			vk::Pipeline pieces;
 		} pipelines;
 
-		static inline struct
-		{
-			std::vector<vk::DescriptorSet> board;
-		} descriptorSets;
+		static inline std::vector<vk::DescriptorSet> descriptorSets;
 
 		static const inline std::vector<Vertex> vertices
 		{
-			{{-0.5f, -0.5f, 0.5f, 1.f}, {1.f, 0.f, 0.f}, {1.f, 0.f} },
-			{ {0.5f, -0.5f, 0.5f, 1.f}, { 0.f, 1.f, 0.f }, {0.f, 0.f}},
-			{{0.5f, 0.5f, 0.5f, 1.f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-			{{-0.5f, 0.5f, 0.5f, 1.f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
+			{ {-0.5f, -0.5f, 0.5f, 1.f}, { 0.F, 0.F, 1.F }, { 1.F, 0.F }, { 1.f, 0.f, 0.f }},
+			{ {0.5f, -0.5f, 0.5f, 1.f}, {0.F, 0.F, 1.f}, {0.f, 0.f}, {0.f, 1.f, 0.f} },
+			{ {0.5f, 0.5f, 0.5f, 1.f}, {0.F, 0.F, 1.f}, {0.f, 1.f}, {0.f, 0.f, 1.f} },
+			{ {-0.5f, 0.5f, 0.5f, 1.f}, {0.F, 0.F, 1.f}, {1.F, 1.F}, {1.f, 1.f, 1.f} },
 		};
 
 		static const inline std::vector<uint32_t> indices =
@@ -171,6 +187,19 @@ namespace egkr
 		static const inline bool enableValidationLayers = true;
 #endif
 
+		static inline struct ShaderData
+		{
+			Buffer buffer;
+			struct Values
+			{
+				glm::mat4 projection = glm::perspective(glm::radians(90.F), 1.F, 0.1F, 1000.F);
+				glm::mat4 model{1.F};
+				glm::vec4 lightPos{5.F, 5.F, -5.F, 1.F};
+				glm::vec4 viewPos{0.F, 0.F, -5.F, 1.F};
+			} values;
+		} shaderData[2];
+
 		static inline uint32_t currentFrame;
+
 	};
 }

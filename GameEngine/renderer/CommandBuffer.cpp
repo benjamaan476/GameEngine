@@ -2,7 +2,7 @@
 
 namespace egkr
 {
-	CommandBuffer::CommandBuffer() {}
+	CommandBuffer::CommandBuffer() = default;
 
 	CommandBuffer::CommandBuffer(size_t bufferCount)
 	{

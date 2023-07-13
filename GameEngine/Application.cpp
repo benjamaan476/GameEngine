@@ -1,6 +1,8 @@
 #include "Application.h"
 #include "Log/Log.h"
 
+#include "renderer/Model.h"
+
 #include "Instrumentor.h"
 
 Application::Application(std::string_view name, uint32_t width, uint32_t height)
@@ -14,8 +16,11 @@ Application::Application(std::string_view name, uint32_t width, uint32_t height)
 	egkr::egakeru::create();
 	image = egkr::Texture2D::createFromFile("chess.png");
 
-	chessSprite = egkr::egakeru::createSprite(image);
+	//chessSprite = egkr::egakeru::createSprite(image);
 	initGui();
+
+	std::filesystem::path filepath = R"(C:\Users\bencr\source\repos\Vulkan\assets\models\voyager.gltf)";
+	model = egkr::Model::createGLTF(filepath);
 	PROFILE_END_SESSION();
 }
 
@@ -80,8 +85,8 @@ void Application::mainLoop()
 			//ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
 			//wind.rgbaColour("clear color", clearColor); // Edit 3 floats representing a color
 
-			if (wind.button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-				counter++;
+		if (wind.button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			counter++;
 
 			auto count = std::format("counter = {}", counter);
 			wind.text(count, true);
@@ -90,10 +95,10 @@ void Application::mainLoop()
 
 			if (dropped)
 			{
-				dropped = false;
-				if (wind.dragDropSource("dasf", "Image drop", _droppedPayload.c_str(), Gui::DragDropFlags::Extern))
+			dropped = false;
+			if (wind.dragDropSource("dasf", "Image drop", _droppedPayload.c_str(), Gui::DragDropFlags::Extern))
 				{
-					wind.endDropSource();
+			wind.endDropSource();
 
 				}
 			}
@@ -110,14 +115,15 @@ void Application::mainLoop()
 				wind.endDropDestination();
 			}
 
-			Gui::Window sprite(_gui.get(), "Sprite Editor");
-			sprite.var("Sprite Size", chessSprite->size, 0.f, 1000.f, 10.f);
-			sprite.var("Sprite Position", chessSprite->position, 0.f, 1000.f, 10.f);
-			sprite.var("Sprite Rotation", chessSprite->rotation, 0.f, 360.f, 1.f);
+			model->render_ui(_gui.get());
+			//Gui::Window sprite(_gui.get(), "Sprite Editor");
+			//sprite.var("Sprite Size", chessSprite->size, 0.f, 1000.f, 10.f);
+			//sprite.var("Sprite Position", chessSprite->position, 0.f, 1000.f, 10.f);
+			//sprite.var("Sprite Rotation", chessSprite->rotation, 0.f, 360.f, 1.f);
 			//ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		}
 
-		egkr::egakeru::drawFrame(boardProperties);
+		egkr::egakeru::drawFrame(boardProperties, model);
 	}
 
 	egkr::state.device.waitIdle();
@@ -131,7 +137,7 @@ void Application::destroyUi()
 void Application::cleanup()
 {
 	destroyUi();
-	chessSprite->destory();
+	//chessSprite->destory();
 	image.destroy();
 	egkr::egakeru::cleanup();
 

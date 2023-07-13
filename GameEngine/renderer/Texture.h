@@ -65,7 +65,7 @@ namespace egkr
 				.setImageView(view)
 				.setSampler(sampler);
 		}
-		~Texture2D()
+		virtual ~Texture2D()
 		{
 
 		}
